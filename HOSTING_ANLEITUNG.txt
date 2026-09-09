@@ -1,0 +1,18 @@
+FamilienHub v4 – kostenlos als PWA online stellen
+====================================================
+
+GitHub Pages:
+1. Kostenlosen GitHub-Account anlegen.
+2. Neues Repository "familienhub" erstellen.
+3. Den Inhalt dieses Ordners hochladen.
+4. Settings -> Pages -> Deploy from a branch.
+5. Branch "main" und Ordner "/" auswählen.
+6. Die angezeigte HTTPS-Adresse auf dem iPhone in Safari öffnen.
+7. Teilen -> Zum Home-Bildschirm -> Hinzufügen.
+
+Alternativ funktionieren Cloudflare Pages oder Netlify ebenfalls kostenlos.
+
+Wichtig:
+- HTTPS ist für Service Worker/PWA-Installation nötig.
+- Supabase-Sync aus v3 bleibt enthalten.
+- Home Assistant Beta bleibt enthalten.

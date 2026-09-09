@@ -1,0 +1,41 @@
+FamilienHub – Ideen für spätere Versionen
+==========================================
+
+Meine Priorität:
+1. Rollen & Berechtigungen
+   Eltern, Kind, Gast. Home-Assistant-Zugang und Familienverwaltung nur für Eltern.
+
+2. Familien-Inbox
+   Schnell etwas ablegen, ohne sofort entscheiden zu müssen:
+   Termin, Aufgabe, Einkauf oder Pinnwand.
+
+3. Erinnerungszentrale
+   Aufgaben, Termine, Müll, Geburtstage und wiederkehrende Hausaufgaben.
+
+4. Haus & Wartung
+   Geräte, Garantie, Filterwechsel, Heizung, Zählerstände, Handwerkerkontakte.
+
+5. Essensplan -> Einkauf
+   Rezept/Gericht wählen und Zutaten mit einem Tippen auf die Einkaufsliste.
+
+6. Dokumentenablage
+   Stundenplan, Vereinszettel, wichtige PDFs/Fotos und Garantien.
+
+7. Home Assistant
+   Gute-Nacht-Szene, Haus-verlassen, offene Fenster, Rollläden,
+   Waschmaschine fertig und Energieübersicht.
+
+8. Bessere Cloud-Synchronisierung
+   Statt "letzte Änderung gewinnt" jeden Eintrag einzeln synchronisieren,
+   damit mehrere Familienmitglieder gleichzeitig arbeiten können.
+
+Später optional:
+- Taschengeld/Sparziele
+- freiwilliger Status "Zuhause / Schule / Arbeit / unterwegs"
+- Urlaubs-/Packlisten
+- wiederkehrende Hausputz-/Wartungspläne
+
+Nicht sofort nötig:
+- eigener Messenger/Chat
+- Banking
+- dauerhaftes Standorttracking

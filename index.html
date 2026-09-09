@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5eee6">
+<title>FamilienHub</title>
+<style>
+:root{
+  --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
+  --accent:#b56e52;--sage:#718c70;--gold:#d29b56;--red:#b95f59;--blue:#6f87a7;
+  --shadow:0 12px 34px rgba(75,53,38,.10);--r:22px;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+.app{max-width:1100px;margin:auto;padding:0 max(16px,env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:18px 0 12px;background:rgba(246,239,231,.94);backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#d9ad88,#b56e52);display:grid;place-items:center;color:white;font-size:23px;box-shadow:var(--shadow)}
+h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
+.avatars{display:flex;align-items:center}.avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;border:3px solid white;margin-left:-6px;background:#b56e52;color:white;display:grid;place-items:center;font-weight:750;box-shadow:0 3px 9px #0001}.avatar.sm{width:30px;height:30px;border-width:2px;margin:0}
+.hero{background:linear-gradient(135deg,#fff9f2,#efe0d1);border:1px solid var(--line);border-radius:30px;padding:22px;box-shadow:var(--shadow);margin:6px 0 16px}.hero h2{font-size:29px;margin:6px 0}.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:17px;box-shadow:0 7px 20px rgba(75,53,38,.05)}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.card h3{font-size:17px;margin:0 0 12px}.row{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #eee2d8}.row:first-of-type{border-top:0}.grow{flex:1;min-width:0}.title{font-weight:650}.meta{font-size:12px;color:var(--muted);margin-top:3px}.time{color:var(--accent);font-size:12px;font-weight:750;min-width:44px}
+.primary,.ghost,.danger,.iconbtn{border:0;border-radius:13px;padding:9px 12px}.primary{background:var(--accent);color:#fff}.ghost{background:#f0e5da;color:var(--ink)}.danger{background:#f4dfdc;color:#9f4e49}.iconbtn{background:#f3e8de}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}.section-title{display:flex;align-items:center;justify-content:space-between;margin:5px 0 13px}.section-title h2{margin:0}
+.check{width:22px;height:22px;border-radius:50%;border:2px solid #b6a79b;background:#fff}.check.done{background:var(--sage);border-color:var(--sage);color:#fff}.priority{width:7px;height:28px;border-radius:6px;background:#d6c7ba}.priority.med{background:var(--gold)}.priority.high{background:var(--red)}
+.notice{padding:11px 13px;border-radius:14px;background:#f0e9df;color:var(--muted);font-size:12px}.success{background:#e6efe5;color:#577057}.warning{background:#f7ecd9;color:#8d6a35}
+.bottom{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:min(780px,calc(100% - 20px));display:grid;grid-template-columns:repeat(6,1fr);gap:5px;padding:7px;background:rgba(255,250,245,.96);backdrop-filter:blur(15px);border:1px solid var(--line);border-radius:21px;box-shadow:var(--shadow);z-index:30}.nav{border:0;background:transparent;color:var(--muted);border-radius:14px;padding:8px 2px;font-size:10px}.nav b{display:block;font-size:18px;margin-bottom:2px}.nav.active{background:#f0e2d6;color:var(--accent);font-weight:700}
+.modalbg{position:fixed;inset:0;background:#2c221c55;z-index:40;display:grid;place-items:end center}.modal{width:min(650px,100%);max-height:92vh;overflow:auto;background:#fffaf5;border-radius:28px 28px 0 0;padding:21px;box-shadow:0 -12px 40px #0002}.form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.full{grid-column:1/-1}label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;padding:11px;color:var(--ink)}textarea{min-height:82px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.shopping-tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px}.shop-tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px}.shop-tab.active{background:#f0e2d6;color:var(--accent);border-color:#e2c6b4}.shop-tab .avatar{display:inline-grid;vertical-align:middle;margin-right:5px}
+.calendar-list .row{align-items:flex-start}.badge{font-size:11px;border-radius:999px;padding:4px 8px;background:#f1e6dc;color:var(--muted)}
+.person-card{display:flex;align-items:center;gap:13px}.person-card .avatar{width:54px;height:54px;margin:0}.person-actions{margin-left:auto}
+.homegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.device{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px;display:flex;align-items:center;gap:9px}.sw{margin-left:auto;width:42px;height:24px;border-radius:999px;background:#d8cec6;padding:3px}.sw i{display:block;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}.sw.on{background:var(--sage)}.sw.on i{transform:translateX(18px)}
+.photo-preview{width:72px;height:72px;border-radius:50%;object-fit:cover;background:#eee;border:2px solid #fff;box-shadow:0 3px 12px #0001}
+.kpi{font-size:26px;font-weight:800}.kpi-label{font-size:12px;color:var(--muted)}
+.cloud-status{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:14px;background:#f0e9df;font-size:12px;color:var(--muted)}
+.cloud-dot{width:9px;height:9px;border-radius:50%;background:#b9aaa0}.cloud-dot.on{background:var(--sage)}
+.codebox{background:#3e3733;color:#fff8f1;border-radius:15px;padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:auto}
+.sync-log{font-size:11px;color:var(--muted);margin-top:7px}
+.pwa-install-card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px}
+@media(max-width:760px){.s4,.s5,.s6,.s7,.s8{grid-column:span 12}.form{grid-template-columns:1fr}.full{grid-column:auto}.homegrid{grid-template-columns:1fr}.hero h2{font-size:25px}.brand .small{display:none}}
+</style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FamilienHub">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6efe7">
+
+</head>
+<body>
+<div id="root"></div>
+<script>
+const KEY="familienhub-v3-data";
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const plusDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const seed={
+ family:[
+  {id:"p1",name:"Papa",role:"Elternteil",photo:"",tone:"#b56e52"},
+  {id:"p2",name:"Mama",role:"Elternteil",photo:"",tone:"#6f87a7"},
+  {id:"p3",name:"Lina",role:"Kind",photo:"",tone:"#718c70"},
+  {id:"p4",name:"Noah",role:"Kind",photo:"",tone:"#b98b56"}
+ ],
+ events:[
+  {id:"e1",title:"Schule",date:todayISO(),time:"08:00",person:"Lina",place:""},
+  {id:"e2",title:"Zahnarzt",date:todayISO(),time:"15:30",person:"Mama",place:"Praxis"},
+  {id:"e3",title:"Familienabend",date:todayISO(),time:"18:00",person:"Alle",place:"Zuhause"},
+  {id:"e4",title:"Fußballtraining",date:plusDays(2),time:"17:00",person:"Noah",place:"Sportplatz"}
+ ],
+ tasks:[
+  {id:"t1",title:"Mülltonne rausstellen",due:todayISO(),time:"19:00",who:"Papa",prio:"med",repeat:"weekly",done:false,completedAt:null},
+  {id:"t2",title:"Paket abholen",due:todayISO(),time:"17:30",who:"Mama",prio:"high",repeat:"none",done:false,completedAt:null},
+  {id:"t3",title:"Pflanzen gießen",due:plusDays(1),time:"18:00",who:"Lina",prio:"low",repeat:"weekly",done:false,completedAt:null}
+ ],
+ shoppingLists:[
+  {id:"l1",name:"Lebensmittel",icon:"🛒"},
+  {id:"l2",name:"Drogerie",icon:"🧴"},
+  {id:"l3",name:"Baumarkt",icon:"🔨"}
+ ],
+ shopping:[
+  {id:"s1",listId:"l1",name:"Milch",qty:"2×",cat:"Milchprodukte",by:"Mama",done:false},
+  {id:"s2",listId:"l1",name:"Brot",qty:"1×",cat:"Backwaren",by:"Papa",done:false},
+  {id:"s3",listId:"l2",name:"Waschmittel",qty:"1×",cat:"Haushalt",by:"Mama",done:false},
+  {id:"s4",listId:"l3",name:"8-mm-Dübel",qty:"1 Pack",cat:"Befestigung",by:"Papa",done:false}
+ ],
+ wishes:[
+  {id:"w1",owner:"Lina",title:"Kopfhörer",note:"am liebsten beige",url:"",reserved:false,reservedBy:null},
+  {id:"w2",owner:"Noah",title:"Lego-Set",note:"Weltraum",url:"",reserved:true,reservedBy:"Papa"},
+  {id:"w3",owner:"Mama",title:"Italienisches Kochbuch",note:"",url:"",reserved:false,reservedBy:null}
+ ],
+ occasions:[
+  {id:"o1",title:"Geburtstag Lina",date:plusDays(38),kind:"Geburtstag",remind:14},
+  {id:"o2",title:"Hochzeitstag",date:plusDays(95),kind:"Jahrestag",remind:7}
+ ],
+ notes:[
+  {id:"n1",text:"Samstag 14 Uhr: gemeinsam Kuchen backen 🍰",author:"Mama",created:new Date().toISOString()},
+  {id:"n2",text:"Bitte Schulsachen für Montag prüfen.",author:"Papa",created:new Date().toISOString()}
+ ],
+ meals:[
+  {id:"m1",day:"Heute",title:"Pasta mit Tomatensoße"},
+  {id:"m2",day:"Morgen",title:"Ofengemüse & Feta"},
+  {id:"m3",day:"Freitag",title:"Selbstgemachte Pizza"}
+ ],
+ settings:{notifications:false,currentUser:"Papa"},
+ ha:{url:"",token:"",connected:false,entities:[]},
+ demoDevices:[
+  {id:"d1",entity_id:"light.wohnzimmer",room:"Wohnzimmer",name:"Deckenlicht",icon:"💡",state:"on"},
+  {id:"d2",entity_id:"cover.wohnzimmer",room:"Wohnzimmer",name:"Rollladen",icon:"🪟",state:"closed"},
+  {id:"d3",entity_id:"light.flur",room:"Flur",name:"Licht",icon:"💡",state:"off"}
+ ]
+};
+let db=JSON.parse(localStorage.getItem(KEY)||"null")||structuredClone(seed);
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all"};
+
+const CLOUD_KEY="familienhub-v3-cloud";
+let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
+  url:"",anonKey:"",accessToken:"",refreshToken:"",userId:"",email:"",
+  familyId:"",familyName:"",inviteCode:"",displayName:"",enabled:false,lastSync:""
+};
+let cloudMembers=[];
+let cloudReservations=[];
+let cloudPushTimer=null;
+let cloudPollingStarted=false;
+
+function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
+function authHeaders(extra={}){
+  const token=cloud.accessToken||cloud.anonKey;
+  return {
+    apikey:cloud.anonKey,
+    Authorization:"Bearer "+token,
+    "Content-Type":"application/json",
+    ...extra
+  };
+}
+async function api(path,opts={}){
+  if(!cloud.url) throw new Error("Supabase-URL fehlt.");
+  const r=await fetch(cloud.url.replace(/\/$/,"")+path,{...opts,headers:authHeaders(opts.headers||{})});
+  const text=await r.text();
+  let data=null; try{data=text?JSON.parse(text):null}catch{data=text}
+  if(!r.ok) throw new Error((data&&data.msg)||(data&&data.message)||(data&&data.error_description)||("HTTP "+r.status));
+  return data;
+}
+function setCloudStatus(message,ok=false){
+  const e=document.getElementById("cloudStatus");
+  if(e){e.innerHTML=`<span class="cloud-dot ${ok?"on":""}"></span>${esc(message)}`;}
+}
+async function cloudSignUp(){
+  const u=document.getElementById("cUrl")?.value.trim();const k=document.getElementById("cKey")?.value.trim();if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
+  const email=val("cEmail"), password=val("cPassword");
+  if(!email||!password) return alert("E-Mail und Passwort eingeben.");
+  try{
+    const d=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/signup",{
+      method:"POST",
+      headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},
+      body:JSON.stringify({email,password})
+    }).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.msg||j.error_description||"Registrierung fehlgeschlagen");return j});
+    if(d.access_token){
+      cloud.accessToken=d.access_token; cloud.refreshToken=d.refresh_token||""; cloud.userId=d.user?.id||""; cloud.email=email; saveCloud();
+      setCloudStatus("Konto erstellt und angemeldet.",true); render();
+    } else {
+      alert("Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bestätige zuerst die E-Mail und melde dich danach an.");
+    }
+  }catch(e){alert(e.message)}
+}
+async function cloudSignIn(){
+  const u=document.getElementById("cUrl")?.value.trim();const k=document.getElementById("cKey")?.value.trim();if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
+  const email=val("cEmail"),password=val("cPassword");
+  if(!email||!password)return alert("E-Mail und Passwort eingeben.");
+  try{
+    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{
+      method:"POST",headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},body:JSON.stringify({email,password})
+    });
+    const d=await r.json(); if(!r.ok)throw new Error(d.error_description||d.msg||"Anmeldung fehlgeschlagen");
+    cloud.accessToken=d.access_token;cloud.refreshToken=d.refresh_token||"";cloud.userId=d.user?.id||"";cloud.email=email;cloud.enabled=true;saveCloud();
+    setCloudStatus("Angemeldet.",true); await loadCloudMembership(); startCloudPolling(); render();
+  }catch(e){alert(e.message)}
+}
+async function cloudSignOut(){
+  try{if(cloud.accessToken)await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/logout",{method:"POST",headers:authHeaders()})}catch{}
+  cloud.accessToken="";cloud.refreshToken="";cloud.userId="";cloud.email="";cloud.familyId="";cloud.familyName="";cloud.inviteCode="";cloud.enabled=false;cloudMembers=[];cloudReservations=[];saveCloud();render();
+}
+async function cloudCreateFamily(){
+  const name=val("cFamilyName"),display=val("cDisplayName");
+  if(!name||!display)return alert("Familienname und dein Anzeigename fehlen.");
+  try{
+    const d=await api("/rest/v1/rpc/create_family",{method:"POST",body:JSON.stringify({p_name:name,p_display_name:display})});
+    const row=Array.isArray(d)?d[0]:d;
+    cloud.familyId=row.family_id;cloud.familyName=row.family_name;cloud.inviteCode=row.invite_code;cloud.displayName=display;cloud.enabled=true;saveCloud();
+    await cloudPush(true);await loadCloudMembership();startCloudPolling();render();
+  }catch(e){alert(e.message)}
+}
+async function cloudJoinFamily(){
+  const code=val("cInviteCode").toUpperCase(),display=val("cDisplayName");
+  if(!code||!display)return alert("Einladungscode und Anzeigename fehlen.");
+  try{
+    const d=await api("/rest/v1/rpc/join_family",{method:"POST",body:JSON.stringify({p_invite_code:code,p_display_name:display})});
+    const row=Array.isArray(d)?d[0]:d;
+    cloud.familyId=row.family_id;cloud.familyName=row.family_name;cloud.inviteCode=row.invite_code;cloud.displayName=display;cloud.enabled=true;saveCloud();
+    await cloudPull(true);await loadCloudMembership();startCloudPolling();render();
+  }catch(e){alert(e.message)}
+}
+async function loadCloudMembership(){
+  if(!cloud.familyId||!cloud.accessToken)return;
+  try{
+    cloudMembers=await api(`/rest/v1/family_members?family_id=eq.${cloud.familyId}&select=user_id,display_name,role`);
+    await loadReservations();
+  }catch(e){console.warn(e)}
+}
+function cloudStateCopy(){
+  const copy=structuredClone(db);
+  copy.wishes=(copy.wishes||[]).map(w=>({...w,reserved:false,reservedBy:null}));
+  return copy;
+}
+async function cloudPush(force=false){
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;
+  try{
+    const payload={family_id:cloud.familyId,data:cloudStateCopy(),updated_at:new Date().toISOString()};
+    const existing=await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}&select=family_id`);
+    if(existing?.length){
+      await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}`,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify(payload)});
+    }else{
+      await api("/rest/v1/family_state",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(payload)});
+    }
+    cloud.lastSync=new Date().toISOString();saveCloud();setCloudStatus("Synchronisiert",true);
+  }catch(e){setCloudStatus("Sync-Fehler: "+e.message,false)}
+}
+function scheduleCloudPush(){
+  if(!cloud.enabled||!cloud.familyId)return;
+  clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(()=>cloudPush(),700);
+}
+async function cloudPull(silent=false){
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;
+  try{
+    const rows=await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}&select=data,updated_at`);
+    if(rows?.length&&rows[0].data){
+      const remote=rows[0].data;
+      db={...db,...remote};
+      localStorage.setItem(KEY,JSON.stringify(db));
+      cloud.lastSync=rows[0].updated_at||new Date().toISOString();saveCloud();
+      await loadReservations();
+      if(!silent)render();
+    }
+    setCloudStatus("Synchronisiert",true);
+  }catch(e){setCloudStatus("Abruf fehlgeschlagen: "+e.message,false)}
+}
+function startCloudPolling(){
+  if(cloudPollingStarted)return;
+  cloudPollingStarted=true;
+  setInterval(()=>{if(cloud.enabled&&cloud.familyId)cloudPull(true).then(()=>{if(state.view!=="cloud")render()})},6000);
+}
+async function loadReservations(){
+  if(!cloud.familyId||!cloud.accessToken)return;
+  try{
+    cloudReservations=await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&select=wish_id,reserved_by,owner_user_id,created_at`);
+  }catch(e){cloudReservations=[]}
+}
+function ownerUserIdForWish(w){
+  const m=cloudMembers.find(x=>x.display_name===w.owner);
+  return m?.user_id||null;
+}
+function reservationFor(wishId){return cloudReservations.find(r=>r.wish_id===wishId)}
+async function toggleCloudWish(w){
+  const existing=reservationFor(w.id);
+  try{
+    if(existing){
+      if(existing.reserved_by!==cloud.userId)return alert("Dieses Geschenk wurde bereits von jemand anderem reserviert.");
+      await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&wish_id=eq.${encodeURIComponent(w.id)}&reserved_by=eq.${cloud.userId}`,{method:"DELETE"});
+    }else{
+      const owner=ownerUserIdForWish(w);
+      if(owner&&owner===cloud.userId)return alert("Eigene Wünsche können nicht reserviert werden.");
+      await api("/rest/v1/wish_reservations",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({family_id:cloud.familyId,wish_id:w.id,reserved_by:cloud.userId,owner_user_id:owner})});
+    }
+    await loadReservations();render();
+  }catch(e){alert(e.message)}
+}
+
+
+function ensureCalendarOwners(){
+  db.events = db.events.map(e=>{
+    if(e.calendarOwner) return e;
+    if(e.person==="Alle") return {...e,calendarOwner:"family"};
+    const p=db.family.find(x=>x.name===e.person);
+    return {...e,calendarOwner:p?.id||"family"};
+  });
+}
+ensureCalendarOwners();
+
+const save=()=>{
+  localStorage.setItem(KEY,JSON.stringify(db));
+  scheduleCloudPush();
+};
+const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const person=n=>db.family.find(p=>p.name===n);
+function avatar(n,sm=false){const p=person(n)||{name:n||"?",photo:"",tone:"#9b78a6"};return p.photo?`<img class="avatar ${sm?"sm":""}" src="${p.photo}" alt="${esc(p.name)}">`:`<div class="avatar ${sm?"sm":""}" style="background:${p.tone}">${esc((p.name||"?")[0])}</div>`}
+
+function calendarName(ownerId){
+  if(ownerId==="family") return "Familie";
+  return db.family.find(p=>p.id===ownerId)?.name || "Familie";
+}
+function calendarColor(ownerId){
+  if(ownerId==="family") return "#b56e52";
+  return db.family.find(p=>p.id===ownerId)?.tone || "#9b78a6";
+}
+function calendarAvatar(ownerId){
+  if(ownerId==="family") return `<div class="avatar sm" style="background:#b56e52">♥</div>`;
+  const p=db.family.find(x=>x.id===ownerId);
+  return p ? avatar(p.name,true) : `<div class="avatar sm">?</div>`;
+}
+function eventOwnerBadge(e){
+  const name=calendarName(e.calendarOwner);
+  const color=calendarColor(e.calendarOwner);
+  return `<span class="badge" style="background:${color}18;color:${color};border:1px solid ${color}35">${esc(name)}</span>`;
+}
+
+function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
+function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
+function go(v){state.view=v;state.modal=null;render()}
+function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
+function shopRow(s){return `<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div></div>${avatar(s.by,true)}</div>`}
+function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
+
+function todayView(){
+ const td=todayISO(), ev=db.events.filter(e=>e.date===td).sort((a,b)=>a.time.localeCompare(b.time)), tasks=db.tasks.filter(t=>!t.done), shopping=db.shopping.filter(s=>!s.done);
+ const occ=[...db.occasions].sort((a,b)=>a.date.localeCompare(b.date))[0];
+ return `<section class="hero"><span class="pill">☀︎ Familienmorgen</span><h2>Guten Morgen zusammen 👋</h2><div class="muted">${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben</div></section>
+ <div class="grid">
+  <section class="card s7"><h3>📅 Heute anstehend</h3>${ev.length?ev.map(e=>`<div class="row"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}</div>`).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>
+  <section class="card s5"><h3>🎁 Nächster Anlass</h3>${occ?`<div class="row"><div style="font-size:30px">${occ.kind==="Geburtstag"?"🎂":"✨"}</div><div><div class="title">${esc(occ.title)}</div><div class="meta">${fmtDate(occ.date)} · Erinnerung ${occ.remind} Tage vorher</div></div></div>`:""}</section>
+  <section class="card s6"><h3>✓ Offene Aufgaben</h3>${tasks.slice(0,4).map(taskRow).join("")}</section>
+  <section class="card s6"><h3>🛒 Einkauf</h3>${shopping.slice(0,4).map(shopRow).join("")}</section>
+  <section class="card s6"><h3>📌 Pinnwand</h3>${db.notes.slice(0,2).map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div></div>`).join("")}</section>
+  <section class="card s6"><h3>🍲 Essensplan</h3>${db.meals.slice(0,3).map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="title">${esc(m.title)}</div></div>`).join("")}</section>
+  <section class="card s12"><h3>🏠 Zuhause</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities.slice(0,6):db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div><div class="notice" style="margin-top:10px">${db.ha.connected?"Mit Home Assistant verbunden":"Lokale Demo – echte Home-Assistant-Verbindung unter Mehr → Zuhause"}</div></section>
+ </div>`;
+}
+function calendarView(){
+ const buttons=[
+   `<button class="shop-tab ${state.calendarFilter==="all"?"active":""}" onclick="state.calendarFilter='all';render()">👨‍👩‍👧‍👦 Alle</button>`,
+   `<button class="shop-tab ${state.calendarFilter==="family"?"active":""}" onclick="state.calendarFilter='family';render()">♥ Familie</button>`,
+   ...db.family.map(p=>`<button class="shop-tab ${state.calendarFilter===p.id?"active":""}" onclick="state.calendarFilter='${p.id}';render()">${avatar(p.name,true)} ${esc(p.name)}</button>`)
+ ];
+ const visible=[...db.events]
+   .filter(e=>state.calendarFilter==="all" || e.calendarOwner===state.calendarFilter)
+   .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ return `<div class="section-title"><div><h2>Familienkalender</h2><div class="small">Jeder hat einen eigenen Kalender – und alle können alle Kalender einsehen.</div></div><div class="toolbar"><button class="ghost" onclick="exportICS()">ICS exportieren</button><button class="primary" onclick="openModal('event')">+ Termin</button></div></div>
+ <div class="shopping-tabs">${buttons.join("")}</div>
+ <div class="grid" style="margin-bottom:14px">
+   ${db.family.map(p=>{
+      const count=db.events.filter(e=>e.calendarOwner===p.id).length;
+      return `<section class="card s4"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${count} Termine im eigenen Kalender</div></div></div></section>`;
+   }).join("")}
+ </div>
+ <section class="card s12 calendar-list">
+   ${visible.length?visible.map(e=>`<div class="row">
+      ${calendarAvatar(e.calendarOwner)}
+      <div class="time">${e.time}</div>
+      <div class="grow">
+        <div class="title">${esc(e.title)}</div>
+        <div class="meta">${fmtDate(e.date)} · ${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div>
+      </div>
+      <button class="danger" onclick="removeItem('events','${e.id}')">Löschen</button>
+   </div>`).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
+ </section>`;
+}
+function tasksView(){return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="grid"><section class="card s8">${db.tasks.filter(t=>!t.done).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">offen</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
+function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
+function wishesView(){
+ const owners=[...new Set(db.wishes.map(w=>w.owner))];
+ return `<div class="section-title"><h2>Wunschlisten</h2><button class="primary" onclick="openModal('wish')">+ Wunsch</button></div>
+ <div class="notice warning" style="margin-bottom:12px">${cloud.enabled?"🔒 Cloud-Modus: Reservierungen liegen getrennt vom Familien-Datensatz. Der Besitzer eines verknüpften Kontos sieht seine eigenen Reservierungen nicht.":"🎁 Lokalmodus: Reservierungen sind nur auf diesem Gerät simuliert."}</div>
+ ${owners.map(o=>`<section class="card s12" style="margin-bottom:12px"><h3>${avatar(o,true)} Wünsche von ${esc(o)}</h3>
+ ${db.wishes.filter(w=>w.owner===o).map(w=>{
+   const cr=cloud.enabled?reservationFor(w.id):null;
+   const reserved=cloud.enabled?!!cr:w.reserved;
+   const mine=cloud.enabled&&cr?.reserved_by===cloud.userId;
+   const button=cloud.enabled
+     ? (reserved?`<button class="ghost" onclick="toggleCloudWishById('${w.id}')">${mine?"Meine Reservierung lösen":"Schon reserviert ✓"}</button>`:`<button class="primary" onclick="toggleCloudWishById('${w.id}')">Reservieren</button>`)
+     : `<button class="${w.reserved?"ghost":"primary"}" onclick="toggleWish('${w.id}')">${w.reserved?"Reserviert ✓":"Reservieren"}</button>`;
+   return `<div class="row"><div class="grow"><div class="title">${esc(w.title)}</div><div class="meta">${esc(w.note)}${w.url?` · <a href="${esc(w.url)}" target="_blank">Link</a>`:""}</div></div>${button}</div>`;
+ }).join("")}</section>`).join("")}`;
+}
+function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
+function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
+function notesView(){return `<div class="section-title"><h2>Pinnwand</h2><button class="primary" onclick="openModal('note')">+ Notiz</button></div><section class="card s12">${db.notes.map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div><button class="danger" onclick="removeItem('notes','${n.id}')">Löschen</button></div>`).join("")}</section>`}
+function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2><button class="primary" onclick="openModal('person')">+ Person</button></div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div><div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div></div></section>`).join("")}</div><input id="photoPicker" type="file" accept="image/*" hidden onchange="savePhoto(event)">`}
+function mealsView(){return `<div class="section-title"><h2>Essensplan</h2><button class="primary" onclick="openModal('meal')">+ Gericht</button></div><section class="card s12">${db.meals.map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div></div><button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div>`).join("")}</section>`}
+function homeView(){return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid"><section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section><section class="card s6"><h3>Hinweis</h3><div class="notice warning">Der Token wird in dieser Demo nur lokal im Browser gespeichert. Für eine produktive App würde ich ihn sicher im iOS-Schlüsselbund ablegen.</div><div class="notice" style="margin-top:10px">Je nach Home-Assistant-Konfiguration kann ein Browserzugriff durch CORS blockiert sein. Die native iOS-App hat dieses Problem nicht.</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`}
+
+
+function installView(){
+ const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+ return `<div class="section-title"><div><h2>FamilienHub installieren</h2><div class="small">Ohne App Store direkt auf den Home-Bildschirm.</div></div></div>
+ <div class="grid">
+   <section class="card s6">
+     <h3>${standalone?"✅ Bereits installiert":"📱 Auf iPhone / iPad"}</h3>
+     ${standalone
+       ? `<div class="notice success">FamilienHub läuft bereits als installierte Web-App.</div>`
+       : `<ol style="padding-left:20px;line-height:1.8">
+            <li>FamilienHub in <b>Safari</b> öffnen.</li>
+            <li>Auf <b>Teilen</b> tippen.</li>
+            <li><b>Zum Home-Bildschirm</b> wählen.</li>
+            <li><b>Hinzufügen</b> bestätigen.</li>
+          </ol>
+          <div class="notice">Danach erscheint FamilienHub mit eigenem Icon und startet weitgehend wie eine normale App.</div>`}
+   </section>
+   <section class="card s6">
+     <h3>☁️ Kostenlos online stellen</h3>
+     <div class="notice warning">Für Installation und Offline-Cache braucht die PWA eine HTTPS-Webadresse. Eine lokal geöffnete HTML-Datei reicht dafür nicht.</div>
+     <div class="meta" style="margin-top:12px">Geeignet: GitHub Pages, Cloudflare Pages oder Netlify.</div>
+   </section>
+   <section class="card s12">
+     <h3>✨ PWA-Funktionen</h3>
+     <div class="grid">
+       <div class="pwa-install-card s4"><div class="title">Eigenes App-Icon</div><div class="meta">Home-Bildschirm & App-Switcher</div></div>
+       <div class="pwa-install-card s4"><div class="title">Vollbildmodus</div><div class="meta">ohne normale Safari-Navigation</div></div>
+       <div class="pwa-install-card s4"><div class="title">Offline-Start</div><div class="meta">App-Oberfläche wird zwischengespeichert</div></div>
+     </div>
+   </section>
+ </div>`;
+}
+
+function cloudView(){
+ const logged=!!cloud.accessToken, joined=!!cloud.familyId;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">Automatischer Abgleich zwischen mehreren Geräten über dein eigenes Supabase-Projekt.</div></div></div>
+ <div class="grid">
+  <section class="card s6"><h3>☁️ Supabase-Verbindung</h3>
+   <div class="form">
+    <div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div>
+    <div class="full"><label>Anon / Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div>
+   </div>
+   <div class="notice" style="margin-top:10px">Die SQL-Datei aus dem Download-Paket muss einmal im Supabase SQL Editor ausgeführt werden.</div>
+  </section>
+  <section class="card s6"><h3>👤 Konto</h3>
+   <div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)}`:"Nicht angemeldet"}</div>
+   ${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button></div>`:
+   `<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}
+  </section>
+  ${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName" placeholder="z. B. Familie Müller"></div><div class="full"><label>Dein Name in der App</label><input id="cDisplayName" placeholder="Papa"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section>
+  <section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode" placeholder="AB12CD34"></div><div class="full"><label>Dein Name in der App</label><input id="cDisplayName" placeholder="Mama"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}
+  ${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Diesen Code gibst du den anderen Familienmitgliedern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Automatische Synchronisierung</div><div class="meta">Änderungen werden nach kurzer Verzögerung hochgeladen; andere Geräte prüfen etwa alle 6 Sekunden.</div></div><button class="primary" onclick="cloudPush(true)">Jetzt hochladen</button><button class="ghost" onclick="cloudPull()">Jetzt abrufen</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}
+ </div>`;
+}
+
+function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
+function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,cloud:cloudView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
+function removeItem(k,id){db[k]=db[k].filter(x=>x.id!==id);save();render()}
+function toggleShop(id){const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
+function toggleWish(id){const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
+function toggleDemo(id){const d=db.demoDevices.find(x=>x.id===id);d.state=(d.state==="on"?"off":"on");save();render()}
+function toggleTask(id){const t=db.tasks.find(x=>x.id===id);if(!t.done){t.done=true;t.completedAt=new Date().toISOString();if(t.repeat!=="none"){const nd=new Date(t.due+"T12:00");if(t.repeat==="daily")nd.setDate(nd.getDate()+1);if(t.repeat==="weekly")nd.setDate(nd.getDate()+7);if(t.repeat==="monthly")nd.setMonth(nd.getMonth()+1);db.tasks.push({...t,id:"t"+Date.now(),due:nd.toISOString().slice(0,10),done:false,completedAt:null})}}else{t.done=false;t.completedAt=null}save();render()}
+function openModal(t){state.modal={type:t};render()}function closeModal(){state.modal=null;render()}
+function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
+function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
+function modalHTML(){const t=state.modal.type, f={
+event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div>`,
+task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div>`,
+shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><label>Liste</label><select id="fList">${listOptions()}</select></div><div><label>Menge</label><input id="fQty"></div><div><label>Kategorie</label><input id="fCat" placeholder="z.B. Backwaren"></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
+shoppingList:`<div class="full"><label>Name der Liste</label><input id="fTitle" placeholder="z.B. Apotheke"></div><div><label>Emoji</label><input id="fIcon" value="🛍️"></div>`,
+wish:`<div class="full"><label>Wunsch</label><input id="fTitle"></div><div><label>Für wen?</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Link optional</label><input id="fUrl" type="url"></div>`,
+occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Art</label><select id="fKind"><option>Geburtstag</option><option>Jahrestag</option><option>Feiertag</option><option>Sonstiges</option></select></div><div><label>Erinnerung Tage vorher</label><input id="fRemind" type="number" value="7"></div>`,
+note:`<div class="full"><label>Notiz</label><textarea id="fTitle"></textarea></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
+person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</label><select id="fRole"><option>Elternteil</option><option>Kind</option><option>Gast</option></select></div>`,
+meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div>`
+}[t];return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>Hinzufügen</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
+const val=id=>document.getElementById(id)?.value?.trim()||"";
+function saveModal(t){const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal")db.meals.push({id,day:val("fDay"),title});save();state.modal=null;render()}
+let photoPersonId=null;function editPhoto(id){photoPersonId=id;document.getElementById("photoPicker").click()}function savePhoto(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{const p=db.family.find(x=>x.id===photoPersonId);p.photo=r.result;save();render()};r.readAsDataURL(file)}
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportJSON(){download("FamilienHub-Backup.json",JSON.stringify(db,null,2),"application/json")}
+function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();render();alert("Backup importiert.")}catch{alert("Ungültige Backup-Datei.")}};r.readAsText(f)}
+function exportICS(){let txt="BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//FamilienHub//DE\r\n";for(const e of db.events){const dt=e.date.replaceAll("-","")+ "T"+e.time.replace(":","")+"00";txt+=`BEGIN:VEVENT\r\nUID:${e.id}@familienhub\r\nDTSTART:${dt}\r\nSUMMARY:${e.title.replaceAll("\n"," ")}\r\nDESCRIPTION:Kalender: ${calendarName(e.calendarOwner)}\r\nLOCATION:${(e.place||"").replaceAll("\n"," ")}\r\nEND:VEVENT\r\n`}txt+="END:VCALENDAR\r\n";download("FamilienHub-Kalender.ics",txt,"text/calendar")}
+function resetDemo(){if(confirm("Alle lokalen Daten zurücksetzen?")){localStorage.removeItem(KEY);db=structuredClone(seed);render()}}
+async function enableNotifications(){if(!("Notification"in window)){alert("Benachrichtigungen werden von diesem Browser nicht unterstützt.");return}const p=await Notification.requestPermission();db.settings.notifications=p==="granted";save();if(p==="granted")new Notification("FamilienHub",{body:"Erinnerungen sind aktiviert."});render()}
+function checkReminders(){if(!db.settings.notifications||!("Notification"in window)||Notification.permission!=="granted")return;const now=new Date();for(const t of db.tasks.filter(x=>!x.done)){const dt=new Date(t.due+"T"+t.time);const diff=dt-now;if(diff>0&&diff<60000&&!sessionStorage.getItem("rem-"+t.id)){new Notification("Aufgabe fällig",{body:t.title+" · "+t.who});sessionStorage.setItem("rem-"+t.id,"1")}}}
+async function connectHA(){const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));db.ha={url,token,connected:true,entities:ents};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
+function disconnectHA(){db.ha.connected=false;db.ha.entities=[];save();render()}
+async function haToggle(entity,stateNow){if(!db.ha.connected)return;const domain=entity.split(".")[0];let service;if(domain==="cover")service=(stateNow==="open"?"close_cover":"open_cover");else service=(stateNow==="on"?"turn_off":"turn_on");try{await fetch(`${db.ha.url}/api/services/${domain}/${service}`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});setTimeout(connectHARefresh,500)}catch(e){alert("Schalten fehlgeschlagen: "+e.message)}}
+async function connectHARefresh(){try{const r=await fetch(db.ha.url+"/api/states",{headers:{Authorization:"Bearer "+db.ha.token}});const all=await r.json();db.ha.entities=db.ha.entities.map(e=>{const n=all.find(x=>x.entity_id===e.entity_id);return n?{...e,state:n.state}:e});save();render()}catch{}}
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register("./sw.js");
+      reg.addEventListener("updatefound",()=>console.log("FamilienHub Update gefunden."));
+    }catch(e){console.warn("Service Worker:",e)}
+  });
+}
+
+window.state=state;
+if(cloud.enabled&&cloud.familyId&&cloud.accessToken){loadCloudMembership();startCloudPolling();cloudPull(true)}
+render();
+</script>
+</body>
+</html>

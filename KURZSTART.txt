@@ -1,0 +1,19 @@
+FamilienHub v4.1 – Kurzstart
+============================
+
+1. ZIP entpacken.
+2. Inhalt in ein GitHub-Repository hochladen.
+3. GitHub: Settings -> Pages -> GitHub Actions.
+4. Warten, bis die Action grün ist.
+5. GitHub-Pages-Adresse auf dem iPhone in Safari öffnen.
+6. Teilen -> Zum Home-Bildschirm.
+
+Für die Mehrgeräte-Synchronisierung:
+7. Supabase-Projekt erstellen.
+8. supabase/Supabase_Setup.sql im SQL Editor ausführen.
+9. In FamilienHub unter Mehr -> Familien-Synchronisierung:
+   Project URL + Publishable Key eintragen.
+10. Familie anlegen / Einladungscode nutzen.
+
+WICHTIG:
+Niemals Supabase Secret Key/service_role oder Passwörter in GitHub hochladen.
