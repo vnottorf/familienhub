@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v6.1</title>
+<title>FamilienHub v6.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -46,6 +46,11 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .house-status{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:11px;background:#edf0e7;color:#65725c}
 .house-status.due{background:#f5e3df;color:#9c554f}
 .house-status.soon{background:#f7ecd9;color:#8d6a35}
+.reminder-time{min-width:82px;font-size:11px;color:var(--accent);font-weight:700}
+.reminder-icon{width:34px;height:34px;border-radius:12px;background:#f0e5da;display:grid;place-items:center;font-size:17px}
+.ingredients{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+.meal-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
 .kpi-box{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px}
 
@@ -141,6 +146,18 @@ const seed={
 let db=JSON.parse(localStorage.getItem(KEY)||"null")||structuredClone(seed);
 for(const k of ["inbox","houseMaintenance","houseAssets","meterReadings"]){
   if(!Array.isArray(db[k])) db[k]=structuredClone(seed[k]||[]);
+}
+
+for(const e of db.events){if(e.remindMinutes===undefined)e.remindMinutes=60}
+for(const t of db.tasks){if(t.remindMinutes===undefined)t.remindMinutes=60}
+for(const o of db.occasions){if(o.remind===undefined)o.remind=7}
+for(const m of db.houseMaintenance){if(m.reminderDays===undefined)m.reminderDays=30}
+for(const m of db.meals){
+  if(!Array.isArray(m.ingredients)){
+    m.ingredients = typeof m.ingredients==="string"
+      ? m.ingredients.split(/[\n,]/).map(x=>x.trim()).filter(Boolean)
+      : [];
+  }
 }
 
 let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all"};
@@ -550,7 +567,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
@@ -620,17 +637,99 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
 function notesView(){return `<div class="section-title"><h2>Pinnwand</h2><button class="primary" onclick="openModal('note')">+ Notiz</button></div><section class="card s12">${db.notes.map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div><button class="danger" onclick="removeItem('notes','${n.id}')">Löschen</button></div>`).join("")}</section>`}
 function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2>${canManageFamily()?`<button class="primary" onclick="openModal('person')">+ Person</button>`:""}</div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div>${canManageFamily()?`<div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div>`:""}</div></section>`).join("")}</div>${!canManageFamily()?`<div class="notice" style="margin-top:12px">Familienprofile können nur von einem Eltern-Profil verwaltet werden.</div>`:""}`;}
-function mealsView(){return `<div class="section-title"><h2>Essensplan</h2><button class="primary" onclick="openModal('meal')">+ Gericht</button></div><section class="card s12">${db.meals.map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div></div><button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div>`).join("")}</section>`}
+function mealShoppingListName(){return db.shoppingLists.find(l=>l.id===state.shopList)?.name||"Einkauf"}
+function addMealToShopping(id){
+ if(!requireGeneralEdit())return;
+ const m=db.meals.find(x=>x.id===id);if(!m)return;
+ const listId=state.shopList||db.shoppingLists[0]?.id;
+ if(!listId)return alert("Bitte zuerst eine Einkaufsliste anlegen.");
+ if(!m.ingredients?.length)return alert("Für dieses Gericht sind noch keine Zutaten hinterlegt.");
+ const existing=new Set(db.shopping.filter(s=>s.listId===listId&&!s.done).map(s=>s.name.trim().toLowerCase()));
+ let added=0;
+ for(const ingredient of m.ingredients){
+   const name=String(ingredient).trim();if(!name||existing.has(name.toLowerCase()))continue;
+   db.shopping.push({id:"s"+Date.now()+"-"+added,listId,name,qty:"1×",cat:"Essensplan",by:currentDisplayName(),done:false});
+   existing.add(name.toLowerCase());added++;
+ }
+ save();render();
+ alert(`${added} Zutat${added===1?"":"en"} zu „${mealShoppingListName()}“ hinzugefügt.`);
+}
+function mealsView(){
+ return `<div class="section-title"><div><h2>Essensplan</h2><div class="small">Gerichte planen und Zutaten direkt auf die Einkaufsliste setzen.</div></div><button class="primary" onclick="openModal('meal')">+ Gericht</button></div>
+ <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
+ <section class="card s12">${db.meals.map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
+}
 function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
 
 function currentDisplayName(){
   return cloud.displayName || db.settings.currentUser || db.family[0]?.name || "Familie";
 }
+
+function reminderText(minutes){
+  const n=Number(minutes||0);
+  if(n<=0)return "keine Erinnerung";
+  if(n<60)return `${n} Min vorher`;
+  if(n===60)return "1 Std vorher";
+  if(n<1440)return `${Math.round(n/60)} Std vorher`;
+  if(n===1440)return "1 Tag vorher";
+  return `${Math.round(n/1440)} Tage vorher`;
+}
+function reminderDateText(d){
+  return d.toLocaleString("de-DE",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+}
+function reminderItems(){
+  const items=[];
+  for(const e of db.events){
+    const mins=Number(e.remindMinutes||0);if(mins<=0)continue;
+    const due=new Date(`${e.date}T${e.time||"09:00"}`);
+    const trigger=new Date(due.getTime()-mins*60000);
+    items.push({key:`event-${e.id}-${trigger.getTime()}`,icon:"📅",type:"Termin",title:e.title,meta:`${calendarName(e.calendarOwner)} · ${reminderText(mins)}`,trigger,due});
+  }
+  for(const t of db.tasks.filter(x=>!x.done)){
+    const mins=Number(t.remindMinutes||0);if(mins<=0)continue;
+    const due=new Date(`${t.due}T${t.time||"18:00"}`);
+    const trigger=new Date(due.getTime()-mins*60000);
+    items.push({key:`task-${t.id}-${trigger.getTime()}`,icon:"✓",type:"Aufgabe",title:t.title,meta:`${t.who} · ${reminderText(mins)}`,trigger,due});
+  }
+  for(const o of db.occasions){
+    const days=Number(o.remind||0);if(days<=0)continue;
+    const due=new Date(`${o.date}T09:00`);
+    const trigger=new Date(due.getTime()-days*86400000);
+    items.push({key:`occasion-${o.id}-${trigger.getTime()}`,icon:"🎉",type:o.kind||"Anlass",title:o.title,meta:`${days} Tage vorher`,trigger,due});
+  }
+  for(const m of db.houseMaintenance){
+    const days=Number(m.reminderDays??30);if(days<=0)continue;
+    const due=new Date(`${m.nextDate}T09:00`);
+    const trigger=new Date(due.getTime()-days*86400000);
+    items.push({key:`maint-${m.id}-${trigger.getTime()}`,icon:"🛠️",type:"Wartung",title:m.title,meta:`${m.area} · ${days} Tage vorher`,trigger,due});
+  }
+  return items.filter(x=>!Number.isNaN(x.trigger.getTime())).sort((a,b)=>a.trigger-b.trigger);
+}
+function remindersView(){
+  const now=new Date();
+  const all=reminderItems();
+  const upcoming=all.filter(x=>x.due>=new Date(now.getTime()-86400000)).slice(0,30);
+  const permission=("Notification" in window)?Notification.permission:"unsupported";
+  return `<div class="section-title"><div><h2>Erinnerungen</h2><div class="small">Termine, Aufgaben, Anlässe und Hauswartungen in einer Übersicht.</div></div></div>
+  <div class="grid">
+    <section class="card s4">
+      <h3>🔔 Benachrichtigungen</h3>
+      <div class="notice ${permission==="granted"?"success":"warning"}">${permission==="granted"?"Browser-Benachrichtigungen sind aktiviert.":permission==="denied"?"Benachrichtigungen sind im Browser blockiert.":"Benachrichtigungen sind noch nicht aktiviert."}</div>
+      ${permission!=="granted"&&permission!=="unsupported"?`<button class="primary" style="margin-top:10px" onclick="enableNotifications()">Benachrichtigungen aktivieren</button>`:""}
+      <div class="meta" style="margin-top:10px">In dieser PWA funktionieren Erinnerungen zuverlässig, wenn FamilienHub geöffnet bzw. regelmäßig gestartet wird. Echte serverseitige Push-Nachrichten bauen wir später separat.</div>
+    </section>
+    <section class="card s8">
+      <h3>⏰ Kommende Erinnerungen</h3>
+      ${upcoming.length?upcoming.map(r=>`<div class="row"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.type)} · ${esc(r.meta)}</div></div><div class="reminder-time">${reminderDateText(r.trigger)}</div></div>`).join(""):`<div class="notice success">Keine kommenden Erinnerungen.</div>`}
+    </section>
+  </div>`;
+}
+
 function inboxView(){
  return `<div class="section-title"><div><h2>Familien-Inbox</h2><div class="small">Gedanken schnell ablegen und später mit einem Tipp einsortieren.</div></div>${canEditGeneral()?`<button class="primary" onclick="openModal('inbox')">+ Schnellnotiz</button>`:""}</div>
  <div class="grid">
@@ -727,11 +826,11 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v6.1 ergänzt zusätzlich einen sicheren Passwort-Reset per E-Mail.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v6.2 ergänzt Erinnerungszentrale und Essensplan → Einkaufsliste.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
-function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
+function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
 function toggleWish(id){if(!requireGeneralEdit())return;const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
@@ -741,24 +840,24 @@ function openModal(t){state.modal={type:t};render()}function closeModal(){state.
 function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
 function modalHTML(){const t=state.modal.type, f={
-event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div>`,
-task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div>`,
+event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option><option value="10080">1 Woche vorher</option></select></div>`,
+task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>`,
 shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><label>Liste</label><select id="fList">${listOptions()}</select></div><div><label>Menge</label><input id="fQty"></div><div><label>Kategorie</label><input id="fCat" placeholder="z.B. Backwaren"></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
 shoppingList:`<div class="full"><label>Name der Liste</label><input id="fTitle" placeholder="z.B. Apotheke"></div><div><label>Emoji</label><input id="fIcon" value="🛍️"></div>`,
 wish:`<div class="full"><label>Wunsch</label><input id="fTitle"></div><div><label>Für wen?</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Link optional</label><input id="fUrl" type="url"></div>`,
 occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Art</label><select id="fKind"><option>Geburtstag</option><option>Jahrestag</option><option>Feiertag</option><option>Sonstiges</option></select></div><div><label>Erinnerung Tage vorher</label><input id="fRemind" type="number" value="7"></div>`,
 note:`<div class="full"><label>Notiz</label><textarea id="fTitle"></textarea></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
 person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</label><select id="fRole"><option>Elternteil</option><option>Kind</option><option>Gast</option></select></div>`,
-meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div>`,
+meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div><div class="full"><label>Zutaten</label><textarea id="fIngredients" placeholder="z. B. Nudeln, Tomaten, Parmesan&#10;Mit Komma oder neuer Zeile trennen"></textarea></div>`,
 inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeholder="Was möchtest du später einsortieren?"></textarea></div>`,
-maintenance:`<div class="full"><label>Wartung</label><input id="fTitle" placeholder="z. B. Rauchmelder prüfen"></div><div><label>Bereich</label><input id="fArea" placeholder="z. B. Technik"></div><div><label>Nächster Termin</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Intervall in Monaten</label><input id="fInterval" type="number" min="1" value="12"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+maintenance:`<div class="full"><label>Wartung</label><input id="fTitle" placeholder="z. B. Rauchmelder prüfen"></div><div><label>Bereich</label><input id="fArea" placeholder="z. B. Technik"></div><div><label>Nächster Termin</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Intervall in Monaten</label><input id="fInterval" type="number" min="1" value="12"></div><div><label>Erinnerung Tage vorher</label><input id="fReminderDays" type="number" min="0" value="30"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeholder="z. B. Waschmaschine"></div><div><label>Ort</label><input id="fArea" placeholder="Hauswirtschaft"></div><div><label>Kaufdatum</label><input id="fPurchase" type="date"></div><div><label>Garantie bis</label><input id="fWarranty" type="date"></div><div><label>Seriennummer</label><input id="fSerial"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`
 }[t];return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>Hinzufügen</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-function saveModal(t){if(["person","maintenance","asset","meter"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal")db.meals.push({id,day:val("fDay"),title});
+function saveModal(t){if(["person","maintenance","asset","meter"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0)});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal"){const ingredients=val("fIngredients").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);db.meals.push({id,day:val("fDay"),title,ingredients});}
 if(t==="inbox")db.inbox.unshift({id:"i"+Date.now(),text:title,author:currentDisplayName(),created:new Date().toISOString()});
-if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
+if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),reminderDays:Number(val("fReminderDays")||0),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
 if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now(),name:title,location:val("fArea")||"Haus",purchaseDate:val("fPurchase"),warrantyUntil:val("fWarranty"),serial:val("fSerial"),note:val("fNote")});}
 if(t==="meter"){if(!requireParent())return;db.meterReadings.push({id:"mr"+Date.now(),kind:val("fKind"),value:title,unit:val("fUnit")||"",date:val("fDate")||todayISO()});}
 save();state.modal=null;render()}
@@ -775,7 +874,20 @@ function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new File
 function exportICS(){let txt="BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//FamilienHub//DE\r\n";for(const e of db.events){const dt=e.date.replaceAll("-","")+ "T"+e.time.replace(":","")+"00";txt+=`BEGIN:VEVENT\r\nUID:${e.id}@familienhub\r\nDTSTART:${dt}\r\nSUMMARY:${e.title.replaceAll("\n"," ")}\r\nDESCRIPTION:Kalender: ${calendarName(e.calendarOwner)}\r\nLOCATION:${(e.place||"").replaceAll("\n"," ")}\r\nEND:VEVENT\r\n`}txt+="END:VCALENDAR\r\n";download("FamilienHub-Kalender.ics",txt,"text/calendar")}
 function resetDemo(){if(confirm("Alle lokalen Daten zurücksetzen?")){localStorage.removeItem(KEY);db=structuredClone(seed);render()}}
 async function enableNotifications(){if(!("Notification"in window)){alert("Benachrichtigungen werden von diesem Browser nicht unterstützt.");return}const p=await Notification.requestPermission();db.settings.notifications=p==="granted";save();if(p==="granted")new Notification("FamilienHub",{body:"Erinnerungen sind aktiviert."});render()}
-function checkReminders(){if(!db.settings.notifications||!("Notification"in window)||Notification.permission!=="granted")return;const now=new Date();for(const t of db.tasks.filter(x=>!x.done)){const dt=new Date(t.due+"T"+t.time);const diff=dt-now;if(diff>0&&diff<60000&&!sessionStorage.getItem("rem-"+t.id)){new Notification("Aufgabe fällig",{body:t.title+" · "+t.who});sessionStorage.setItem("rem-"+t.id,"1")}}}
+function checkReminders(){
+ if(!db.settings.notifications||!("Notification"in window)||Notification.permission!=="granted")return;
+ const now=new Date();
+ for(const r of reminderItems()){
+   const age=now-r.trigger;
+   if(age<0||age>7*86400000)continue;
+   const key="fh-notified-"+r.key;
+   if(localStorage.getItem(key))continue;
+   new Notification(`${r.icon} ${r.type}: ${r.title}`,{
+     body:`${r.meta} · ${reminderDateText(r.due)}`
+   });
+   localStorage.setItem(key,new Date().toISOString());
+ }
+}
 async function connectHA(){if(!requireParent())return;const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));db.ha={url,token,connected:true,entities:ents};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
 function disconnectHA(){if(!requireParent())return;db.ha.connected=false;db.ha.entities=[];save();render()}
 async function haToggle(entity,stateNow){if(!requireGeneralEdit()||!db.ha.connected)return;const domain=entity.split(".")[0];let service;if(domain==="cover")service=(stateNow==="open"?"close_cover":"open_cover");else service=(stateNow==="on"?"turn_off":"turn_on");try{await fetch(`${db.ha.url}/api/services/${domain}/${service}`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});setTimeout(connectHARefresh,500)}catch(e){alert("Schalten fehlgeschlagen: "+e.message)}}
