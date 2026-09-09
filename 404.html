@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v4.2</title>
+<title>FamilienHub v5</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -37,6 +37,10 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .cloud-dot{width:9px;height:9px;border-radius:50%;background:#b9aaa0}.cloud-dot.on{background:var(--sage)}
 .codebox{background:#3e3733;color:#fff8f1;border-radius:15px;padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:auto}
 .sync-log{font-size:11px;color:var(--muted);margin-top:7px}
+.role-badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;background:#f1e6dc;color:var(--muted)}
+.role-parent{background:#e5eee3;color:#557054}.role-child{background:#e7edf4;color:#60758f}.role-guest{background:#eee8e3;color:#81736a}
+.member-line{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #eee2d8}.member-line:first-child{border-top:0}
+.locked-card{opacity:.78}
 .pwa-install-card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px}
 @media(max-width:760px){.s4,.s5,.s6,.s7,.s8{grid-column:span 12}.form{grid-template-columns:1fr}.full{grid-column:auto}.homegrid{grid-template-columns:1fr}.hero h2{font-size:25px}.brand .small{display:none}}
 </style>
@@ -123,159 +127,178 @@ let cloudMembers=[];
 let cloudReservations=[];
 let cloudPushTimer=null;
 let cloudPollingStarted=false;
+let syncBusy=false;
+let lastSyncSnapshot=null;
+const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals"];
 
 function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
 function authHeaders(extra={}){
   const token=cloud.accessToken||cloud.anonKey;
-  return {
-    apikey:cloud.anonKey,
-    Authorization:"Bearer "+token,
-    "Content-Type":"application/json",
-    ...extra
-  };
+  return {apikey:cloud.anonKey,Authorization:"Bearer "+token,"Content-Type":"application/json",...extra};
 }
 async function api(path,opts={}){
   if(!cloud.url) throw new Error("Supabase-URL fehlt.");
   const r=await fetch(cloud.url.replace(/\/$/,"")+path,{...opts,headers:authHeaders(opts.headers||{})});
   const text=await r.text();
-  let data=null; try{data=text?JSON.parse(text):null}catch{data=text}
-  if(!r.ok) throw new Error((data&&data.msg)||(data&&data.message)||(data&&data.error_description)||("HTTP "+r.status));
+  let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
+  if(!r.ok)throw new Error((data&&data.msg)||(data&&data.message)||(data&&data.error_description)||("HTTP "+r.status));
   return data;
 }
 function setCloudStatus(message,ok=false){
   const e=document.getElementById("cloudStatus");
-  if(e){e.innerHTML=`<span class="cloud-dot ${ok?"on":""}"></span>${esc(message)}`;}
+  if(e)e.innerHTML=`<span class="cloud-dot ${ok?"on":""}"></span>${esc(message)}`;
 }
+function myCloudMember(){return cloudMembers.find(m=>m.user_id===cloud.userId)}
+function myCloudRole(){if(!cloud.enabled||!cloud.familyId)return "local";return myCloudMember()?.role||"guest"}
+function roleLabel(r){return ({parent:"Elternteil",child:"Kind",guest:"Gast",local:"Lokal"}[r]||r)}
+function roleClass(r){return r==="parent"?"role-parent":r==="child"?"role-child":"role-guest"}
+function canManageFamily(){return !cloud.enabled||!cloud.familyId||myCloudRole()==="parent"}
+function canEditGeneral(){return !cloud.enabled||!cloud.familyId||["parent","child"].includes(myCloudRole())}
+function requireGeneralEdit(){if(canEditGeneral())return true;alert("Dieses Profil ist als Gast nur zum Lesen eingerichtet.");return false}
+function requireParent(){if(canManageFamily())return true;alert("Diese Einstellung kann nur von einem Eltern-Profil geändert werden.");return false}
+
 async function cloudSignUp(){
-  const u=document.getElementById("cUrl")?.value.trim();const k=document.getElementById("cKey")?.value.trim();if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
-  const email=val("cEmail"), password=val("cPassword");
-  if(!email||!password) return alert("E-Mail und Passwort eingeben.");
+  const u=document.getElementById("cUrl")?.value.trim(),k=document.getElementById("cKey")?.value.trim();
+  if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
+  const email=val("cEmail"),password=val("cPassword");if(!email||!password)return alert("E-Mail und Passwort eingeben.");
   try{
-    const d=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/signup",{
-      method:"POST",
-      headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},
-      body:JSON.stringify({email,password})
-    }).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.msg||j.error_description||"Registrierung fehlgeschlagen");return j});
-    if(d.access_token){
-      cloud.accessToken=d.access_token; cloud.refreshToken=d.refresh_token||""; cloud.userId=d.user?.id||""; cloud.email=email; saveCloud();
-      setCloudStatus("Konto erstellt und angemeldet.",true); render();
-    } else {
-      alert("Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bestätige zuerst die E-Mail und melde dich danach an.");
-    }
+    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/signup",{method:"POST",headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const d=await r.json();if(!r.ok)throw new Error(d.msg||d.error_description||"Registrierung fehlgeschlagen");
+    if(d.access_token){cloud.accessToken=d.access_token;cloud.refreshToken=d.refresh_token||"";cloud.userId=d.user?.id||"";cloud.email=email;saveCloud();render()}
+    else alert("Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bestätige zuerst die E-Mail und melde dich danach an.");
   }catch(e){alert(e.message)}
 }
 async function cloudSignIn(){
-  const u=document.getElementById("cUrl")?.value.trim();const k=document.getElementById("cKey")?.value.trim();if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
-  const email=val("cEmail"),password=val("cPassword");
-  if(!email||!password)return alert("E-Mail und Passwort eingeben.");
+  const u=document.getElementById("cUrl")?.value.trim(),k=document.getElementById("cKey")?.value.trim();
+  if(u)cloud.url=u;if(k)cloud.anonKey=k;saveCloud();
+  const email=val("cEmail"),password=val("cPassword");if(!email||!password)return alert("E-Mail und Passwort eingeben.");
   try{
-    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{
-      method:"POST",headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},body:JSON.stringify({email,password})
-    });
-    const d=await r.json(); if(!r.ok)throw new Error(d.error_description||d.msg||"Anmeldung fehlgeschlagen");
+    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.msg||"Anmeldung fehlgeschlagen");
     cloud.accessToken=d.access_token;cloud.refreshToken=d.refresh_token||"";cloud.userId=d.user?.id||"";cloud.email=email;cloud.enabled=true;saveCloud();
-    setCloudStatus("Angemeldet.",true); await loadCloudMembership(); startCloudPolling(); render();
+    await loadCloudMembership();if(cloud.familyId)await initializeRecordSync();startCloudPolling();render();
   }catch(e){alert(e.message)}
 }
 async function cloudSignOut(){
   try{if(cloud.accessToken)await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/logout",{method:"POST",headers:authHeaders()})}catch{}
-  cloud.accessToken="";cloud.refreshToken="";cloud.userId="";cloud.email="";cloud.familyId="";cloud.familyName="";cloud.inviteCode="";cloud.enabled=false;cloudMembers=[];cloudReservations=[];saveCloud();render();
+  cloud.accessToken="";cloud.refreshToken="";cloud.userId="";cloud.email="";cloud.familyId="";cloud.familyName="";cloud.inviteCode="";cloud.enabled=false;
+  cloudMembers=[];cloudReservations=[];lastSyncSnapshot=null;saveCloud();render();
 }
 async function cloudCreateFamily(){
-  const name=val("cFamilyName"),display=val("cCreateDisplayName");
-  if(!name||!display)return alert("Familienname und dein Anzeigename fehlen.");
+  const name=val("cFamilyName"),display=val("cCreateDisplayName");if(!name||!display)return alert("Familienname und dein Anzeigename fehlen.");
   try{
-    const d=await api("/rest/v1/rpc/create_family",{method:"POST",body:JSON.stringify({p_name:name,p_display_name:display})});
-    const row=Array.isArray(d)?d[0]:d;
+    const d=await api("/rest/v1/rpc/create_family",{method:"POST",body:JSON.stringify({p_name:name,p_display_name:display})}),row=Array.isArray(d)?d[0]:d;
     cloud.familyId=row.family_id;cloud.familyName=row.family_name;cloud.inviteCode=row.invite_code;cloud.displayName=display;cloud.enabled=true;saveCloud();
-    await cloudPush(true);await loadCloudMembership();startCloudPolling();render();
+    await loadCloudMembership();await initializeRecordSync();startCloudPolling();render();
   }catch(e){alert(e.message)}
 }
 async function cloudJoinFamily(){
-  const code=val("cInviteCode").toUpperCase(),display=val("cJoinDisplayName");
-  if(!code||!display)return alert("Einladungscode und Anzeigename fehlen.");
+  const code=val("cInviteCode").toUpperCase(),display=val("cJoinDisplayName");if(!code||!display)return alert("Einladungscode und Anzeigename fehlen.");
   try{
-    const d=await api("/rest/v1/rpc/join_family",{method:"POST",body:JSON.stringify({p_invite_code:code,p_display_name:display})});
-    const row=Array.isArray(d)?d[0]:d;
+    const d=await api("/rest/v1/rpc/join_family",{method:"POST",body:JSON.stringify({p_invite_code:code,p_display_name:display})}),row=Array.isArray(d)?d[0]:d;
     cloud.familyId=row.family_id;cloud.familyName=row.family_name;cloud.inviteCode=row.invite_code;cloud.displayName=display;cloud.enabled=true;saveCloud();
-    await cloudPull(true);await loadCloudMembership();startCloudPolling();render();
+    await loadCloudMembership();await initializeRecordSync();startCloudPolling();render();
   }catch(e){alert(e.message)}
 }
 async function loadCloudMembership(){
   if(!cloud.familyId||!cloud.accessToken)return;
   try{
-    cloudMembers=await api(`/rest/v1/family_members?family_id=eq.${cloud.familyId}&select=user_id,display_name,role`);
-    await loadReservations();
+    cloudMembers=await api(`/rest/v1/family_members?family_id=eq.${cloud.familyId}&select=user_id,display_name,role,created_at&order=created_at.asc`);
+    const me=myCloudMember();if(me)cloud.displayName=me.display_name;await loadReservations();saveCloud();
   }catch(e){console.warn(e)}
 }
-function cloudStateCopy(){
-  const copy=structuredClone(db);
-  copy.wishes=(copy.wishes||[]).map(w=>({...w,reserved:false,reservedBy:null}));
-  return copy;
+
+function cleanSyncItem(collection,item){
+  const c=structuredClone(item);delete c._cloudUpdatedAt;
+  if(collection==="wishes"){c.reserved=false;c.reservedBy=null}
+  return c;
 }
-async function cloudPush(force=false){
+function syncSnapshot(){
+  const snap={};
+  for(const c of SYNC_COLLECTIONS){snap[c]={};for(const item of (db[c]||[])){if(item?.id)snap[c][String(item.id)]=JSON.stringify(cleanSyncItem(c,item))}}
+  return snap;
+}
+function buildAllRecordRows(){
+  const rows=[];for(const c of SYNC_COLLECTIONS)for(const item of (db[c]||[]))if(item?.id)rows.push({family_id:cloud.familyId,collection:c,record_id:String(item.id),data:cleanSyncItem(c,item),deleted:false});
+  return rows;
+}
+function changedRecordRows(){
+  if(!lastSyncSnapshot)return buildAllRecordRows();
+  const now=syncSnapshot(),rows=[];
+  for(const c of SYNC_COLLECTIONS){
+    const prev=lastSyncSnapshot[c]||{},cur=now[c]||{};
+    for(const [id,j] of Object.entries(cur))if(prev[id]!==j)rows.push({family_id:cloud.familyId,collection:c,record_id:id,data:JSON.parse(j),deleted:false});
+    for(const id of Object.keys(prev))if(!(id in cur))rows.push({family_id:cloud.familyId,collection:c,record_id:id,data:{},deleted:true});
+  }
+  return rows;
+}
+async function postRecordRows(rows){
+  if(!rows.length)return;
+  await api("/rest/v1/family_records?on_conflict=family_id,collection,record_id",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(rows)});
+}
+function applyRemoteRows(rows){
+  for(const c of SYNC_COLLECTIONS){
+    const relevant=rows.filter(r=>r.collection===c);if(!relevant.length)continue;
+    const byId=new Map(relevant.map(r=>[String(r.record_id),r])),merged=[];
+    for(const local of (db[c]||[])){const r=byId.get(String(local.id));if(!r)continue;if(!r.deleted)merged.push(r.data);byId.delete(String(local.id))}
+    for(const r of byId.values())if(!r.deleted)merged.push(r.data);
+    db[c]=merged;
+  }
+  localStorage.setItem(KEY,JSON.stringify(db));
+}
+async function migrateLegacyStateIfNeeded(){
+  const existing=await api(`/rest/v1/family_records?family_id=eq.${cloud.familyId}&select=record_id&limit=1`);if(existing?.length)return;
+  const legacy=await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}&select=data`);
+  if(legacy?.length&&legacy[0].data&&Object.keys(legacy[0].data).length){
+    db={...db,...legacy[0].data};localStorage.setItem(KEY,JSON.stringify(db));
+    if(canEditGeneral())await postRecordRows(buildAllRecordRows());
+  }else if(canManageFamily())await postRecordRows(buildAllRecordRows());
+}
+async function initializeRecordSync(){
   if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;
   try{
-    const payload={family_id:cloud.familyId,data:cloudStateCopy(),updated_at:new Date().toISOString()};
-    const existing=await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}&select=family_id`);
-    if(existing?.length){
-      await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}`,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify(payload)});
-    }else{
-      await api("/rest/v1/family_state",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(payload)});
-    }
-    cloud.lastSync=new Date().toISOString();saveCloud();setCloudStatus("Synchronisiert",true);
-  }catch(e){setCloudStatus("Sync-Fehler: "+e.message,false)}
+    await migrateLegacyStateIfNeeded();
+    const rows=await api(`/rest/v1/family_records?family_id=eq.${cloud.familyId}&select=collection,record_id,data,updated_at,deleted&order=updated_at.asc`);
+    if(rows?.length)applyRemoteRows(rows);
+    lastSyncSnapshot=syncSnapshot();cloud.lastSync=new Date().toISOString();saveCloud();setCloudStatus("Synchronisiert · Einzel-Einträge",true);
+  }catch(e){setCloudStatus("Sync-Setup: "+e.message,false)}
 }
-function scheduleCloudPush(){
-  if(!cloud.enabled||!cloud.familyId)return;
-  clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(()=>cloudPush(),700);
+async function recordPushInternal(){const rows=changedRecordRows();if(rows.length){await postRecordRows(rows);lastSyncSnapshot=syncSnapshot()}}
+async function recordPullInternal(){
+  const rows=await api(`/rest/v1/family_records?family_id=eq.${cloud.familyId}&select=collection,record_id,data,updated_at,deleted&order=updated_at.asc`);
+  if(rows?.length)applyRemoteRows(rows);lastSyncSnapshot=syncSnapshot();await loadReservations();
 }
-async function cloudPull(silent=false){
-  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;
-  try{
-    const rows=await api(`/rest/v1/family_state?family_id=eq.${cloud.familyId}&select=data,updated_at`);
-    if(rows?.length&&rows[0].data){
-      const remote=rows[0].data;
-      db={...db,...remote};
-      localStorage.setItem(KEY,JSON.stringify(db));
-      cloud.lastSync=rows[0].updated_at||new Date().toISOString();saveCloud();
-      await loadReservations();
-      if(!silent)render();
-    }
-    setCloudStatus("Synchronisiert",true);
-  }catch(e){setCloudStatus("Abruf fehlgeschlagen: "+e.message,false)}
+async function cloudSyncCycle(silent=false){
+  if(syncBusy||!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;syncBusy=true;
+  try{await recordPushInternal();await recordPullInternal();cloud.lastSync=new Date().toISOString();saveCloud();setCloudStatus("Synchronisiert · Einzel-Einträge",true);if(!silent)render()}
+  catch(e){setCloudStatus("Sync-Fehler: "+e.message,false);if(!silent)alert("Synchronisierung fehlgeschlagen: "+e.message)}
+  finally{syncBusy=false}
 }
-function startCloudPolling(){
-  if(cloudPollingStarted)return;
-  cloudPollingStarted=true;
-  setInterval(()=>{if(cloud.enabled&&cloud.familyId)cloudPull(true).then(()=>{if(state.view!=="cloud")render()})},6000);
-}
+async function cloudPush(){return cloudSyncCycle(false)}
+async function cloudPull(silent=false){return cloudSyncCycle(silent)}
+function scheduleCloudPush(){if(!cloud.enabled||!cloud.familyId)return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(()=>cloudSyncCycle(true),700)}
+function startCloudPolling(){if(cloudPollingStarted)return;cloudPollingStarted=true;setInterval(()=>{if(cloud.enabled&&cloud.familyId)cloudSyncCycle(true).then(()=>{if(!["cloud","roles"].includes(state.view))render()})},6000)}
+
 async function loadReservations(){
   if(!cloud.familyId||!cloud.accessToken)return;
-  try{
-    cloudReservations=await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&select=wish_id,reserved_by,owner_user_id,created_at`);
-  }catch(e){cloudReservations=[]}
+  try{cloudReservations=await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&select=wish_id,reserved_by,owner_user_id,created_at`)}catch(e){cloudReservations=[]}
 }
-function ownerUserIdForWish(w){
-  const m=cloudMembers.find(x=>x.display_name===w.owner);
-  return m?.user_id||null;
-}
+function ownerUserIdForWish(w){return cloudMembers.find(x=>x.display_name===w.owner)?.user_id||null}
 function reservationFor(wishId){return cloudReservations.find(r=>r.wish_id===wishId)}
 async function toggleCloudWish(w){
+  if(!requireGeneralEdit())return;
   const existing=reservationFor(w.id);
   try{
-    if(existing){
-      if(existing.reserved_by!==cloud.userId)return alert("Dieses Geschenk wurde bereits von jemand anderem reserviert.");
-      await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&wish_id=eq.${encodeURIComponent(w.id)}&reserved_by=eq.${cloud.userId}`,{method:"DELETE"});
-    }else{
-      const owner=ownerUserIdForWish(w);
-      if(owner&&owner===cloud.userId)return alert("Eigene Wünsche können nicht reserviert werden.");
-      await api("/rest/v1/wish_reservations",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({family_id:cloud.familyId,wish_id:w.id,reserved_by:cloud.userId,owner_user_id:owner})});
-    }
+    if(existing){if(existing.reserved_by!==cloud.userId)return alert("Dieses Geschenk wurde bereits von jemand anderem reserviert.");await api(`/rest/v1/wish_reservations?family_id=eq.${cloud.familyId}&wish_id=eq.${encodeURIComponent(w.id)}&reserved_by=eq.${cloud.userId}`,{method:"DELETE"})}
+    else{const owner=ownerUserIdForWish(w);if(owner&&owner===cloud.userId)return alert("Eigene Wünsche können nicht reserviert werden.");await api("/rest/v1/wish_reservations",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({family_id:cloud.familyId,wish_id:w.id,reserved_by:cloud.userId,owner_user_id:owner})})}
     await loadReservations();render();
   }catch(e){alert(e.message)}
 }
-
+async function setMemberRole(userId,newRole){
+  if(!requireParent())return;
+  try{await api("/rest/v1/rpc/set_member_role",{method:"POST",body:JSON.stringify({p_family_id:cloud.familyId,p_user_id:userId,p_role:newRole})});await loadCloudMembership();render()}
+  catch(e){alert("Rolle konnte nicht geändert werden: "+e.message)}
+}
 
 function ensureCalendarOwners(){
   db.events = db.events.map(e=>{
@@ -316,7 +339,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v5</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
@@ -384,13 +407,17 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
 function notesView(){return `<div class="section-title"><h2>Pinnwand</h2><button class="primary" onclick="openModal('note')">+ Notiz</button></div><section class="card s12">${db.notes.map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div><button class="danger" onclick="removeItem('notes','${n.id}')">Löschen</button></div>`).join("")}</section>`}
-function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2><button class="primary" onclick="openModal('person')">+ Person</button></div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div><div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div></div></section>`).join("")}</div><input id="photoPicker" type="file" accept="image/*" hidden onchange="savePhoto(event)">`}
+function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2>${canManageFamily()?`<button class="primary" onclick="openModal('person')">+ Person</button>`:""}</div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div>${canManageFamily()?`<div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div>`:""}</div></section>`).join("")}</div>${!canManageFamily()?`<div class="notice" style="margin-top:12px">Familienprofile können nur von einem Eltern-Profil verwaltet werden.</div>`:""}`;}
 function mealsView(){return `<div class="section-title"><h2>Essensplan</h2><button class="primary" onclick="openModal('meal')">+ Gericht</button></div><section class="card s12">${db.meals.map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div></div><button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div>`).join("")}</section>`}
-function homeView(){return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid"><section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section><section class="card s6"><h3>Hinweis</h3><div class="notice warning">Der Token wird in dieser Demo nur lokal im Browser gespeichert. Für eine produktive App würde ich ihn sicher im iOS-Schlüsselbund ablegen.</div><div class="notice" style="margin-top:10px">Je nach Home-Assistant-Konfiguration kann ein Browserzugriff durch CORS blockiert sein. Die native iOS-App hat dieses Problem nicht.</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`}
+function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
+function rolesView(){
+ const joined=cloud.enabled&&cloud.familyId,role=myCloudRole();
+ return `<div class="section-title"><div><h2>Rollen & Rechte</h2><div class="small">Eltern verwalten die Familie, Kinder können mitarbeiten, Gäste lesen nur.</div></div></div>${!joined?`<section class="card"><div class="notice">Rollen werden verfügbar, sobald du einer Cloud-Familie beigetreten bist.</div></section>`:`<div class="grid"><section class="card s5"><h3>Deine Rolle</h3><div class="row"><div class="grow"><div class="title">${esc(cloud.displayName||cloud.email)}</div><div class="meta">${esc(cloud.email)}</div></div><span class="role-badge ${roleClass(role)}">${roleLabel(role)}</span></div><div class="notice" style="margin-top:10px">${role==="parent"?"Du kannst Rollen, Cloud und Home Assistant verwalten.":role==="child"?"Du kannst die normalen Familienbereiche bearbeiten.":"Du kannst Familieninhalte ansehen, aber nicht verändern."}</div></section><section class="card s7"><h3>Familienmitglieder</h3>${cloudMembers.map(m=>`<div class="member-line"><div class="grow"><div class="title">${esc(m.display_name)}${m.user_id===cloud.userId?" · du":""}</div><div class="meta">${roleLabel(m.role)}</div></div>${canManageFamily()?`<select style="width:auto" onchange="setMemberRole('${m.user_id}',this.value)"><option value="parent" ${m.role==="parent"?"selected":""}>Elternteil</option><option value="child" ${m.role==="child"?"selected":""}>Kind</option><option value="guest" ${m.role==="guest"?"selected":""}>Gast</option></select>`:`<span class="role-badge ${roleClass(m.role)}">${roleLabel(m.role)}</span>`}</div>`).join("")}</section><section class="card s12"><h3>Rechte im Überblick</h3><div class="grid"><div class="pwa-install-card s4"><div class="title">👨‍👩‍👧 Eltern</div><div class="meta">Alles bearbeiten und sensible Einstellungen verwalten.</div></div><div class="pwa-install-card s4"><div class="title">🧒 Kind</div><div class="meta">Kalender, Aufgaben, Einkauf, Wünsche, Pinnwand und Essensplan.</div></div><div class="pwa-install-card s4"><div class="title">👀 Gast</div><div class="meta">Nur lesen.</div></div></div></section></div>`}`;
+}
 
 function installView(){
  const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -425,34 +452,17 @@ function installView(){
 }
 
 function cloudView(){
- const logged=!!cloud.accessToken, joined=!!cloud.familyId;
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">Automatischer Abgleich zwischen mehreren Geräten über dein eigenes Supabase-Projekt.</div></div></div>
- <div class="grid">
-  <section class="card s6"><h3>☁️ Supabase-Verbindung</h3>
-   <div class="form">
-    <div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div>
-    <div class="full"><label>Anon / Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div>
-   </div>
-   <div class="notice" style="margin-top:10px">Die SQL-Datei aus dem Download-Paket muss einmal im Supabase SQL Editor ausgeführt werden.</div>
-  </section>
-  <section class="card s6"><h3>👤 Konto</h3>
-   <div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)}`:"Nicht angemeldet"}</div>
-   ${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button></div>`:
-   `<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}
-  </section>
-  ${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName" placeholder="z. B. Familie Müller"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName" placeholder="Papa"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section>
-  <section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode" placeholder="AB12CD34"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName" placeholder="Mama"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}
-  ${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Diesen Code gibst du den anderen Familienmitgliedern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Automatische Synchronisierung</div><div class="meta">Änderungen werden nach kurzer Verzögerung hochgeladen; andere Geräte prüfen etwa alle 6 Sekunden.</div></div><button class="primary" onclick="cloudPush(true)">Jetzt hochladen</button><button class="ghost" onclick="cloudPull()">Jetzt abrufen</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}
- </div>`;
+ const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v5 synchronisiert einzelne Termine, Aufgaben und Listen statt den kompletten Familienstand.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
-function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,cloud:cloudView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
-function removeItem(k,id){db[k]=db[k].filter(x=>x.id!==id);save();render()}
-function toggleShop(id){const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
-function toggleWish(id){const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
-function toggleDemo(id){const d=db.demoDevices.find(x=>x.id===id);d.state=(d.state==="on"?"off":"on");save();render()}
-function toggleTask(id){const t=db.tasks.find(x=>x.id===id);if(!t.done){t.done=true;t.completedAt=new Date().toISOString();if(t.repeat!=="none"){const nd=new Date(t.due+"T12:00");if(t.repeat==="daily")nd.setDate(nd.getDate()+1);if(t.repeat==="weekly")nd.setDate(nd.getDate()+7);if(t.repeat==="monthly")nd.setMonth(nd.getMonth()+1);db.tasks.push({...t,id:"t"+Date.now(),due:nd.toISOString().slice(0,10),done:false,completedAt:null})}}else{t.done=false;t.completedAt=null}save();render()}
+function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,roles:rolesView,cloud:cloudView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
+function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
+function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
+function toggleWish(id){if(!requireGeneralEdit())return;const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
+function toggleDemo(id){if(!requireGeneralEdit())return;const d=db.demoDevices.find(x=>x.id===id);d.state=(d.state==="on"?"off":"on");save();render()}
+function toggleTask(id){if(!requireGeneralEdit())return;const t=db.tasks.find(x=>x.id===id);if(!t.done){t.done=true;t.completedAt=new Date().toISOString();if(t.repeat!=="none"){const nd=new Date(t.due+"T12:00");if(t.repeat==="daily")nd.setDate(nd.getDate()+1);if(t.repeat==="weekly")nd.setDate(nd.getDate()+7);if(t.repeat==="monthly")nd.setMonth(nd.getMonth()+1);db.tasks.push({...t,id:"t"+Date.now(),due:nd.toISOString().slice(0,10),done:false,completedAt:null})}}else{t.done=false;t.completedAt=null}save();render()}
 function openModal(t){state.modal={type:t};render()}function closeModal(){state.modal=null;render()}
 function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
@@ -468,8 +478,14 @@ person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</labe
 meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div>`
 }[t];return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>Hinzufügen</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-function saveModal(t){const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal")db.meals.push({id,day:val("fDay"),title});save();state.modal=null;render()}
-let photoPersonId=null;function editPhoto(id){photoPersonId=id;document.getElementById("photoPicker").click()}function savePhoto(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{const p=db.family.find(x=>x.id===photoPersonId);p.photo=r.result;save();render()};r.readAsDataURL(file)}
+function saveModal(t){if(t==="person"){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal")db.meals.push({id,day:val("fDay"),title});save();state.modal=null;render()}
+let photoPersonId=null;
+function editPhoto(id){if(!requireParent())return;photoPersonId=id;document.getElementById("photoPicker").click()}
+function savePhoto(ev){
+ const file=ev.target.files[0];if(!file||!requireParent())return;
+ const reader=new FileReader();
+ reader.onload=()=>{const img=new Image();img.onload=()=>{const size=256,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;const ctx=canvas.getContext("2d"),scale=Math.max(size/img.width,size/img.height),w=img.width*scale,h=img.height*scale;ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);const p=db.family.find(x=>x.id===photoPersonId);if(p){p.photo=canvas.toDataURL("image/jpeg",.78);save();render()}};img.src=reader.result};reader.readAsDataURL(file)
+}
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function exportJSON(){download("FamilienHub-Backup.json",JSON.stringify(db,null,2),"application/json")}
 function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();render();alert("Backup importiert.")}catch{alert("Ungültige Backup-Datei.")}};r.readAsText(f)}
@@ -477,9 +493,9 @@ function exportICS(){let txt="BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Famili
 function resetDemo(){if(confirm("Alle lokalen Daten zurücksetzen?")){localStorage.removeItem(KEY);db=structuredClone(seed);render()}}
 async function enableNotifications(){if(!("Notification"in window)){alert("Benachrichtigungen werden von diesem Browser nicht unterstützt.");return}const p=await Notification.requestPermission();db.settings.notifications=p==="granted";save();if(p==="granted")new Notification("FamilienHub",{body:"Erinnerungen sind aktiviert."});render()}
 function checkReminders(){if(!db.settings.notifications||!("Notification"in window)||Notification.permission!=="granted")return;const now=new Date();for(const t of db.tasks.filter(x=>!x.done)){const dt=new Date(t.due+"T"+t.time);const diff=dt-now;if(diff>0&&diff<60000&&!sessionStorage.getItem("rem-"+t.id)){new Notification("Aufgabe fällig",{body:t.title+" · "+t.who});sessionStorage.setItem("rem-"+t.id,"1")}}}
-async function connectHA(){const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));db.ha={url,token,connected:true,entities:ents};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
-function disconnectHA(){db.ha.connected=false;db.ha.entities=[];save();render()}
-async function haToggle(entity,stateNow){if(!db.ha.connected)return;const domain=entity.split(".")[0];let service;if(domain==="cover")service=(stateNow==="open"?"close_cover":"open_cover");else service=(stateNow==="on"?"turn_off":"turn_on");try{await fetch(`${db.ha.url}/api/services/${domain}/${service}`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});setTimeout(connectHARefresh,500)}catch(e){alert("Schalten fehlgeschlagen: "+e.message)}}
+async function connectHA(){if(!requireParent())return;const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));db.ha={url,token,connected:true,entities:ents};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
+function disconnectHA(){if(!requireParent())return;db.ha.connected=false;db.ha.entities=[];save();render()}
+async function haToggle(entity,stateNow){if(!requireGeneralEdit()||!db.ha.connected)return;const domain=entity.split(".")[0];let service;if(domain==="cover")service=(stateNow==="open"?"close_cover":"open_cover");else service=(stateNow==="on"?"turn_off":"turn_on");try{await fetch(`${db.ha.url}/api/services/${domain}/${service}`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});setTimeout(connectHARefresh,500)}catch(e){alert("Schalten fehlgeschlagen: "+e.message)}}
 async function connectHARefresh(){try{const r=await fetch(db.ha.url+"/api/states",{headers:{Authorization:"Bearer "+db.ha.token}});const all=await r.json();db.ha.entities=db.ha.entities.map(e=>{const n=all.find(x=>x.entity_id===e.entity_id);return n?{...e,state:n.state}:e});save();render()}catch{}}
 
 if("serviceWorker" in navigator){
@@ -492,7 +508,7 @@ if("serviceWorker" in navigator){
 }
 
 window.state=state;
-if(cloud.enabled&&cloud.familyId&&cloud.accessToken){loadCloudMembership();startCloudPolling();cloudPull(true)}
+if(cloud.enabled&&cloud.familyId&&cloud.accessToken){loadCloudMembership().then(()=>initializeRecordSync()).then(()=>startCloudPolling())}
 render();
 </script>
 </body>
