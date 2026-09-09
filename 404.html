@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v6.2.2</title>
+<title>FamilienHub v7</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -50,6 +50,24 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .reminder-icon{width:34px;height:34px;border-radius:12px;background:#f0e5da;display:grid;place-items:center;font-size:17px}
 .ingredients{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
 .meal-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.hero-edit{border:0;background:#ffffffaa;border-radius:12px;padding:8px 10px;color:var(--accent)}
+.quick-actions{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:0 0 16px}
+.quick-action{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:12px 8px;text-align:center;box-shadow:0 5px 14px rgba(75,53,38,.04);color:var(--ink)}
+.quick-action b{display:block;font-size:20px;margin-bottom:5px}
+.card-link{border:0;background:transparent;color:var(--accent);font-size:12px;font-weight:700;padding:4px}
+.note-preview{cursor:pointer;transition:transform .12s ease,background .12s ease}
+.note-preview:hover{transform:translateY(-1px);background:#fffdf9}
+.note-body-preview{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.note-category{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:10px;background:#f0e5da;color:var(--muted);margin-right:6px}
+.detail-sheet{width:min(720px,100%);max-height:92vh;overflow:auto;background:#fffaf5;border-radius:28px 28px 0 0;padding:22px;box-shadow:0 -12px 40px #0002}
+.detail-title{font-size:24px;font-weight:800;margin:4px 0 8px}
+.detail-body{font-size:15px;line-height:1.6;white-space:pre-wrap;margin:16px 0}
+.reactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.react{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px}
+.react.active{background:#f0e2d6;border-color:#e2c6b4}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+@media(max-width:760px){.quick-actions{grid-template-columns:repeat(3,1fr)}}
+
 
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
 .kpi-box{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px}
@@ -152,6 +170,16 @@ for(const e of db.events){if(e.remindMinutes===undefined)e.remindMinutes=60}
 for(const t of db.tasks){if(t.remindMinutes===undefined)t.remindMinutes=60}
 for(const o of db.occasions){if(o.remind===undefined)o.remind=7}
 for(const m of db.houseMaintenance){if(m.reminderDays===undefined)m.reminderDays=30}
+
+if(!db.settings.heroTitle) db.settings.heroTitle="Guten Morgen zusammen 👋";
+if(!db.settings.heroSubtitle) db.settings.heroSubtitle="Unser Tag auf einen Blick";
+for(const n of db.notes){
+  if(!n.title)n.title=(n.text||"Pinnwand").split("\n")[0].slice(0,70);
+  if(!n.body)n.body=n.text||"";
+  if(!n.category)n.category="Allgemein";
+  if(!n.reactions)n.reactions={};
+  if(n.pinned===undefined)n.pinned=false;
+}
 for(const m of db.meals){
   if(!Array.isArray(m.ingredients)){
     m.ingredients = typeof m.ingredients==="string"
@@ -160,7 +188,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all"};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -567,9 +595,9 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v7</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
-function go(v){state.view=v;state.modal=null;render()}
+function go(v){state.view=v;state.modal=null;state.noteDetailId=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
 function shopRow(s){return `<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div></div>${avatar(s.by,true)}</div>`}
 function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
@@ -609,13 +637,20 @@ function sortedMeals(){
 function todayView(){
  const td=todayISO(), ev=db.events.filter(e=>e.date===td).sort((a,b)=>a.time.localeCompare(b.time)), tasks=db.tasks.filter(t=>!t.done), shopping=db.shopping.filter(s=>!s.done);
  const occ=[...db.occasions].sort((a,b)=>a.date.localeCompare(b.date))[0];
- return `<section class="hero"><span class="pill">☀︎ Familienmorgen</span><h2>Guten Morgen zusammen 👋</h2><div class="muted">${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben</div></section>
+ return `<section class="hero"><div class="section-head"><span class="pill">☀︎ Familienmorgen</span>${canManageFamily()?`<button class="hero-edit" onclick="openModal('hero')">✎ Text anpassen</button>`:""}</div><h2>${esc(db.settings.heroTitle)}</h2><div class="muted">${esc(db.settings.heroSubtitle)} · ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben</div></section>
+ <div class="quick-actions">
+   <button class="quick-action" onclick="openModal('event')"><b>📅</b>Termin</button>
+   <button class="quick-action" onclick="openModal('task')"><b>✓</b>Aufgabe</button>
+   <button class="quick-action" onclick="openModal('shop')"><b>🛒</b>Einkauf</button>
+   <button class="quick-action" onclick="openModal('note')"><b>📌</b>Pinnwand</button>
+   <button class="quick-action" onclick="openModal('inbox')"><b>📥</b>Inbox</button>
+ </div>
  <div class="grid">
   <section class="card s7"><h3>📅 Heute anstehend</h3>${ev.length?ev.map(e=>`<div class="row"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}</div>`).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>
   <section class="card s5"><h3>🎁 Nächster Anlass</h3>${occ?`<div class="row"><div style="font-size:30px">${occ.kind==="Geburtstag"?"🎂":"✨"}</div><div><div class="title">${esc(occ.title)}</div><div class="meta">${fmtDate(occ.date)} · Erinnerung ${occ.remind} Tage vorher</div></div></div>`:""}</section>
   <section class="card s6"><h3>✓ Offene Aufgaben</h3>${tasks.slice(0,4).map(taskRow).join("")}</section>
   <section class="card s6"><h3>🛒 Einkauf</h3>${shopping.slice(0,4).map(shopRow).join("")}</section>
-  <section class="card s6"><h3>📌 Pinnwand</h3>${db.notes.slice(0,2).map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div></div>`).join("")}</section>
+  <section class="card s6"><div class="section-head"><h3>📌 Pinnwand</h3><button class="card-link" onclick="go('notes')">Alle anzeigen →</button></div>${sortedNotes().slice(0,3).map(n=>notePreview(n)).join("")||'<div class="notice">Noch nichts angepinnt.</div>'}</section>
   <section class="card s6"><h3>🍲 Essensplan</h3>${sortedMeals().slice(0,5).map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="title">${esc(m.title)}</div></div>`).join("")||'<div class="notice">Noch nichts geplant.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('meals')">Essensplan öffnen</button></section>
   <section class="card s6"><h3>📥 Familien-Inbox</h3>${db.inbox.slice(0,3).map(i=>`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)}</div></div></div>`).join("")||'<div class="notice success">Inbox ist leer.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('inbox')">Inbox öffnen</button></section>
   <section class="card s6"><h3>🛠️ Haus & Wartung</h3>${dueMaintenance().slice(0,3).map(x=>`<div class="row"><div class="grow"><div class="title">${esc(x.title)}</div><div class="meta">${esc(x.area)} · ${fmtDate(x.nextDate)}</div></div>${maintenanceStatus(x)}</div>`).join("")||'<div class="notice success">Aktuell nichts fällig.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('house')">Hausakte öffnen</button></section>
@@ -671,7 +706,71 @@ function wishesView(){
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
 function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
-function notesView(){return `<div class="section-title"><h2>Pinnwand</h2><button class="primary" onclick="openModal('note')">+ Notiz</button></div><section class="card s12">${db.notes.map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div><button class="danger" onclick="removeItem('notes','${n.id}')">Löschen</button></div>`).join("")}</section>`}
+
+function sortedNotes(){
+ return [...db.notes].sort((a,b)=>{
+   if(Boolean(a.pinned)!==Boolean(b.pinned))return a.pinned?-1:1;
+   return String(b.created||"").localeCompare(String(a.created||""));
+ });
+}
+function notePreview(n){
+ return `<div class="row note-preview" onclick="openNote('${n.id}')">
+   ${avatar(n.author,true)}
+   <div class="grow">
+     <div class="title">${n.pinned?"📌 ":""}${esc(n.title||"Pinnwand")}</div>
+     <div class="meta"><span class="note-category">${esc(n.category||"Allgemein")}</span>${esc(n.author)}</div>
+     <div class="meta note-body-preview">${esc(n.body||n.text||"")}</div>
+   </div>
+   <span class="muted">›</span>
+ </div>`;
+}
+function openNote(id){state.noteDetailId=id;render()}
+function closeNote(){state.noteDetailId=null;render()}
+function noteDetailHTML(){
+ const n=db.notes.find(x=>x.id===state.noteDetailId);
+ if(!n)return "";
+ const reactions=["👍","❤️","🎉","😂"];
+ const who=currentDisplayName();
+ return `<div class="modalbg" onclick="if(event.target===this)closeNote()"><div class="detail-sheet">
+   <div class="section-head"><span class="note-category">${esc(n.category||"Allgemein")}</span><button class="ghost" onclick="closeNote()">Schließen</button></div>
+   <div class="detail-title">${n.pinned?"📌 ":""}${esc(n.title||"Pinnwand")}</div>
+   <div class="meta">${esc(n.author)} · ${n.created?new Date(n.created).toLocaleString("de-DE"):""}</div>
+   <div class="detail-body">${esc(n.body||n.text||"")}</div>
+   <div class="reactions">${reactions.map(r=>{
+      const users=n.reactions?.[r]||[];
+      const active=users.includes(who);
+      return `<button class="react ${active?"active":""}" onclick="toggleReaction('${n.id}','${r}')">${r} ${users.length||""}</button>`;
+   }).join("")}</div>
+   ${canEditGeneral()?`<div class="actions"><button class="ghost" onclick="togglePin('${n.id}')">${n.pinned?"Von oben lösen":"Oben anheften"}</button><button class="ghost" onclick="editNote('${n.id}')">Bearbeiten</button><button class="danger" onclick="removeNoteFromDetail('${n.id}')">Löschen</button></div>`:""}
+ </div></div>`;
+}
+function toggleReaction(id,emoji){
+ if(!requireGeneralEdit())return;
+ const n=db.notes.find(x=>x.id===id);if(!n)return;
+ if(!n.reactions)n.reactions={};
+ const who=currentDisplayName(),arr=n.reactions[emoji]||[];
+ n.reactions[emoji]=arr.includes(who)?arr.filter(x=>x!==who):[...arr,who];
+ save();render();
+}
+function togglePin(id){
+ if(!requireGeneralEdit())return;
+ const n=db.notes.find(x=>x.id===id);if(!n)return;
+ n.pinned=!n.pinned;save();render();
+}
+function removeNoteFromDetail(id){
+ if(!requireGeneralEdit())return;
+ db.notes=db.notes.filter(x=>x.id!==id);state.noteDetailId=null;save();render();
+}
+function editNote(id){
+ const n=db.notes.find(x=>x.id===id);if(!n)return;
+ state.noteDetailId=null;
+ state.modal={type:"noteEdit",editId:id,values:{}};
+ render();
+}
+function notesView(){
+ return `<div class="section-title"><div><h2>Pinnwand</h2><div class="small">Tippe auf einen Eintrag, um alles zu lesen, zu reagieren oder ihn zu bearbeiten.</div></div><button class="primary" onclick="openModal('note')">+ Eintrag</button></div>
+ <section class="card s12">${sortedNotes().map(notePreview).join("")||'<div class="notice">Noch nichts auf der Pinnwand.</div>'}</section>`;
+}
 function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2>${canManageFamily()?`<button class="primary" onclick="openModal('person')">+ Person</button>`:""}</div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div>${canManageFamily()?`<div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div>`:""}</div></section>`).join("")}</div>${!canManageFamily()?`<div class="notice" style="margin-top:12px">Familienprofile können nur von einem Eltern-Profil verwaltet werden.</div>`:""}`;}
 function mealShoppingListName(){return db.shoppingLists.find(l=>l.id===state.shopList)?.name||"Einkauf"}
 function addMealToShopping(id){
@@ -895,13 +994,15 @@ function openModal(t){state.modal={type:t,values:{}};render()}function closeModa
 function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
 function modalHTML(){const t=state.modal.type, f={
+hero:`<div class="full"><label>Großer Text</label><input id="fHeroTitle" value="${esc(db.settings.heroTitle)}"></div><div class="full"><label>Unterzeile</label><input id="fHeroSubtitle" value="${esc(db.settings.heroSubtitle)}"></div>`,
 event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option><option value="10080">1 Woche vorher</option></select></div>`,
 task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>`,
 shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><label>Liste</label><select id="fList">${listOptions()}</select></div><div><label>Menge</label><input id="fQty"></div><div><label>Kategorie</label><input id="fCat" placeholder="z.B. Backwaren"></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
 shoppingList:`<div class="full"><label>Name der Liste</label><input id="fTitle" placeholder="z.B. Apotheke"></div><div><label>Emoji</label><input id="fIcon" value="🛍️"></div>`,
 wish:`<div class="full"><label>Wunsch</label><input id="fTitle"></div><div><label>Für wen?</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Link optional</label><input id="fUrl" type="url"></div>`,
 occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Art</label><select id="fKind"><option>Geburtstag</option><option>Jahrestag</option><option>Feiertag</option><option>Sonstiges</option></select></div><div><label>Erinnerung Tage vorher</label><input id="fRemind" type="number" value="7"></div>`,
-note:`<div class="full"><label>Notiz</label><textarea id="fTitle"></textarea></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
+note:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Samstag Kuchen backen"></div><div><label>Kategorie</label><select id="fCategory"><option>Allgemein</option><option>Familie</option><option>Schule</option><option>Haus</option><option>Wichtig</option><option>Freizeit</option></select></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Text</label><textarea id="fBody" placeholder="Hier darf ruhig mehr stehen …"></textarea></div>`,
+noteEdit:`${(()=>{const n=db.notes.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(n.title||"")}"></div><div><label>Kategorie</label><select id="fCategory">${["Allgemein","Familie","Schule","Haus","Wichtig","Freizeit"].map(c=>`<option ${n.category===c?"selected":""}>${c}</option>`).join("")}</select></div><div><label>Von</label><select id="fPerson">${peopleOptions().replace(`>${esc(n.author)}<`,` selected>${esc(n.author)}<`)}</select></div><div class="full"><label>Text</label><textarea id="fBody">${esc(n.body||n.text||"")}</textarea></div>`})()}`,
 person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</label><select id="fRole"><option>Elternteil</option><option>Kind</option><option>Gast</option></select></div>`,
 meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div><div class="full"><label>Zutaten</label><textarea id="fIngredients" placeholder="z. B. Nudeln, Tomaten, Parmesan&#10;Mit Komma oder neuer Zeile trennen"></textarea></div>`,
 inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeholder="Was möchtest du später einsortieren?"></textarea></div>`,
@@ -910,7 +1011,9 @@ asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeh
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`
 }[t];return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>Hinzufügen</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-function saveModal(t){if(["person","maintenance","asset","meter"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0)});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="note")db.notes.unshift({id,text:title,author:val("fPerson"),created:new Date().toISOString()});if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal"){const ingredients=val("fIngredients").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);db.meals.push({id,day:val("fDay"),title,ingredients});}
+function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(t!=="hero"&&t!=="noteEdit"&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0)});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){db.settings.heroTitle=val("fHeroTitle")||"FamilienHub";db.settings.heroSubtitle=val("fHeroSubtitle")||"";}
+if(t==="note"){const body=val("fBody");db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{}});}
+if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal"){const ingredients=val("fIngredients").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);db.meals.push({id,day:val("fDay"),title,ingredients});}
 if(t==="inbox")db.inbox.unshift({id:"i"+Date.now(),text:title,author:currentDisplayName(),created:new Date().toISOString()});
 if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),reminderDays:Number(val("fReminderDays")||0),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
 if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now(),name:title,location:val("fArea")||"Haus",purchaseDate:val("fPurchase"),warrantyUntil:val("fWarranty"),serial:val("fSerial"),note:val("fNote")});}
