@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub</title>
+<title>FamilienHub v4.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -182,7 +182,7 @@ async function cloudSignOut(){
   cloud.accessToken="";cloud.refreshToken="";cloud.userId="";cloud.email="";cloud.familyId="";cloud.familyName="";cloud.inviteCode="";cloud.enabled=false;cloudMembers=[];cloudReservations=[];saveCloud();render();
 }
 async function cloudCreateFamily(){
-  const name=val("cFamilyName"),display=val("cDisplayName");
+  const name=val("cFamilyName"),display=val("cCreateDisplayName");
   if(!name||!display)return alert("Familienname und dein Anzeigename fehlen.");
   try{
     const d=await api("/rest/v1/rpc/create_family",{method:"POST",body:JSON.stringify({p_name:name,p_display_name:display})});
@@ -192,7 +192,7 @@ async function cloudCreateFamily(){
   }catch(e){alert(e.message)}
 }
 async function cloudJoinFamily(){
-  const code=val("cInviteCode").toUpperCase(),display=val("cDisplayName");
+  const code=val("cInviteCode").toUpperCase(),display=val("cJoinDisplayName");
   if(!code||!display)return alert("Einladungscode und Anzeigename fehlen.");
   try{
     const d=await api("/rest/v1/rpc/join_family",{method:"POST",body:JSON.stringify({p_invite_code:code,p_display_name:display})});
@@ -440,8 +440,8 @@ function cloudView(){
    ${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button></div>`:
    `<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}
   </section>
-  ${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName" placeholder="z. B. Familie Müller"></div><div class="full"><label>Dein Name in der App</label><input id="cDisplayName" placeholder="Papa"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section>
-  <section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode" placeholder="AB12CD34"></div><div class="full"><label>Dein Name in der App</label><input id="cDisplayName" placeholder="Mama"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}
+  ${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName" placeholder="z. B. Familie Müller"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName" placeholder="Papa"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section>
+  <section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode" placeholder="AB12CD34"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName" placeholder="Mama"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}
   ${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Diesen Code gibst du den anderen Familienmitgliedern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Automatische Synchronisierung</div><div class="meta">Änderungen werden nach kurzer Verzögerung hochgeladen; andere Geräte prüfen etwa alle 6 Sekunden.</div></div><button class="primary" onclick="cloudPush(true)">Jetzt hochladen</button><button class="ghost" onclick="cloudPull()">Jetzt abrufen</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}
  </div>`;
 }
