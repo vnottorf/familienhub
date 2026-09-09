@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v5</title>
+<title>FamilienHub v5.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -203,9 +203,19 @@ async function cloudJoinFamily(){
 async function loadCloudMembership(){
   if(!cloud.familyId||!cloud.accessToken)return;
   try{
-    cloudMembers=await api(`/rest/v1/family_members?family_id=eq.${cloud.familyId}&select=user_id,display_name,role,created_at&order=created_at.asc`);
-    const me=myCloudMember();if(me)cloud.displayName=me.display_name;await loadReservations();saveCloud();
-  }catch(e){console.warn(e)}
+    cloudMembers=await api("/rest/v1/rpc/get_family_members",{
+      method:"POST",
+      body:JSON.stringify({p_family_id:cloud.familyId})
+    })||[];
+    const me=myCloudMember();
+    if(me)cloud.displayName=me.display_name;
+    await loadReservations();
+    saveCloud();
+  }catch(e){
+    console.warn("Mitglieder laden:",e);
+    cloudMembers=[];
+    setCloudStatus("Mitglieder konnten nicht geladen werden: "+e.message,false);
+  }
 }
 
 function cleanSyncItem(collection,item){
@@ -339,7 +349,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v5</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v5.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
