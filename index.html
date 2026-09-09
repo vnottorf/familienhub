@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v7</title>
+<title>FamilienHub v7.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -67,6 +67,20 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .react.active{background:#f0e2d6;border-color:#e2c6b4}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 @media(max-width:760px){.quick-actions{grid-template-columns:repeat(3,1fr)}}
+.click-row{cursor:pointer;transition:background .12s ease,transform .12s ease}
+.click-row:hover{background:#fffdf9;transform:translateY(-1px)}
+.chev{font-size:20px;color:#b7a79c;padding-left:4px}
+.fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:92px;z-index:35;width:56px;height:56px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:30px;line-height:1;box-shadow:0 12px 28px rgba(93,57,41,.25)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.detail-box{background:#f6eee6;border-radius:14px;padding:11px}
+.detail-box .meta{margin-bottom:3px}
+.qty-control{display:inline-flex;align-items:center;gap:10px;background:#f0e5da;border-radius:999px;padding:5px}
+.qty-control button{width:30px;height:30px;border:0;border-radius:50%;background:#fff;color:var(--ink);font-size:19px}
+.quick-sheet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.quick-sheet-btn{border:1px solid var(--line);background:#fff;border-radius:16px;padding:15px;text-align:left;color:var(--ink)}
+.quick-sheet-btn b{display:block;font-size:22px;margin-bottom:4px}
+@media(max-width:760px){.detail-grid{grid-template-columns:1fr}.fab{bottom:88px}}
+
 
 
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
@@ -173,6 +187,9 @@ for(const m of db.houseMaintenance){if(m.reminderDays===undefined)m.reminderDays
 
 if(!db.settings.heroTitle) db.settings.heroTitle="Guten Morgen zusammen 👋";
 if(!db.settings.heroSubtitle) db.settings.heroSubtitle="Unser Tag auf einen Blick";
+for(const e of db.events){if(e.note===undefined)e.note=""}
+for(const t of db.tasks){if(t.note===undefined)t.note=""}
+for(const s of db.shopping){if(s.note===undefined)s.note=""}
 for(const n of db.notes){
   if(!n.title)n.title=(n.text||"Pinnwand").split("\n")[0].slice(0,70);
   if(!n.body)n.body=n.text||"";
@@ -188,7 +205,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -595,11 +612,11 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v7</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v7.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
-function go(v){state.view=v;state.modal=null;state.noteDetailId=null;render()}
-function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
-function shopRow(s){return `<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div></div>${avatar(s.by,true)}</div>`}
+function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;render()}
+function taskRow(t){return `<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`}
+function shopRow(s){return `<div class="row click-row" onclick="openItemDetail('shop','${s.id}')"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div>${s.note?`<div class="meta note-body-preview">${esc(s.note)}</div>`:""}</div>${avatar(s.by,true)}<span class="chev">›</span></div>`}
 function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
 
 
@@ -646,7 +663,7 @@ function todayView(){
    <button class="quick-action" onclick="openModal('inbox')"><b>📥</b>Inbox</button>
  </div>
  <div class="grid">
-  <section class="card s7"><h3>📅 Heute anstehend</h3>${ev.length?ev.map(e=>`<div class="row"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}</div>`).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>
+  <section class="card s7"><h3>📅 Heute anstehend</h3>${ev.length?ev.map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}<span class="chev">›</span></div>`).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>
   <section class="card s5"><h3>🎁 Nächster Anlass</h3>${occ?`<div class="row"><div style="font-size:30px">${occ.kind==="Geburtstag"?"🎂":"✨"}</div><div><div class="title">${esc(occ.title)}</div><div class="meta">${fmtDate(occ.date)} · Erinnerung ${occ.remind} Tage vorher</div></div></div>`:""}</section>
   <section class="card s6"><h3>✓ Offene Aufgaben</h3>${tasks.slice(0,4).map(taskRow).join("")}</section>
   <section class="card s6"><h3>🛒 Einkauf</h3>${shopping.slice(0,4).map(shopRow).join("")}</section>
@@ -675,14 +692,14 @@ function calendarView(){
    }).join("")}
  </div>
  <section class="card s12 calendar-list">
-   ${visible.length?visible.map(e=>`<div class="row">
+   ${visible.length?visible.map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')">
       ${calendarAvatar(e.calendarOwner)}
       <div class="time">${e.time}</div>
       <div class="grow">
         <div class="title">${esc(e.title)}</div>
         <div class="meta">${fmtDate(e.date)} · ${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div>
       </div>
-      <button class="danger" onclick="removeItem('events','${e.id}')">Löschen</button>
+      <span class="chev">›</span>
    </div>`).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
  </section>`;
 }
@@ -706,6 +723,102 @@ function wishesView(){
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
 function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
+
+
+function openItemDetail(type,id){state.itemDetail={type,id};state.noteDetailId=null;state.quickMenu=false;render()}
+function closeItemDetail(){state.itemDetail=null;render()}
+function detailItem(){
+ if(!state.itemDetail)return null;
+ const {type,id}=state.itemDetail;
+ if(type==="event")return db.events.find(x=>x.id===id);
+ if(type==="task")return db.tasks.find(x=>x.id===id);
+ if(type==="shop")return db.shopping.find(x=>x.id===id);
+ return null;
+}
+function deleteDetailItem(){
+ if(!requireGeneralEdit())return;
+ const d=state.itemDetail;if(!d)return;
+ if(d.type==="event")db.events=db.events.filter(x=>x.id!==d.id);
+ if(d.type==="task")db.tasks=db.tasks.filter(x=>x.id!==d.id);
+ if(d.type==="shop")db.shopping=db.shopping.filter(x=>x.id!==d.id);
+ state.itemDetail=null;save();render();
+}
+function editDetailItem(){
+ if(!requireGeneralEdit())return;
+ const d=state.itemDetail;if(!d)return;
+ state.itemDetail=null;
+ state.modal={type:d.type+"Edit",editId:d.id,values:{}};
+ render();
+}
+function adjustShopQty(id,delta){
+ if(!requireGeneralEdit())return;
+ const s=db.shopping.find(x=>x.id===id);if(!s)return;
+ const match=String(s.qty||"1").match(/(\d+)/);
+ let n=match?Number(match[1]):1;n=Math.max(1,n+delta);
+ s.qty=n+"×";save();render();
+}
+function itemDetailHTML(){
+ const x=detailItem();if(!x)return "";
+ const type=state.itemDetail.type;
+ if(type==="event"){
+   return `<div class="modalbg" onclick="if(event.target===this)closeItemDetail()"><div class="detail-sheet">
+    <div class="section-head"><span class="pill">📅 Termin</span><button class="ghost" onclick="closeItemDetail()">Schließen</button></div>
+    <div class="detail-title">${esc(x.title)}</div>
+    <div class="detail-grid">
+      <div class="detail-box"><div class="meta">Datum</div><div class="title">${fmtDate(x.date)}</div></div>
+      <div class="detail-box"><div class="meta">Uhrzeit</div><div class="title">${esc(x.time||"—")}</div></div>
+      <div class="detail-box"><div class="meta">Kalender</div><div class="title">${esc(calendarName(x.calendarOwner))}</div></div>
+      <div class="detail-box"><div class="meta">Erinnerung</div><div class="title">${esc(reminderText(x.remindMinutes||0))}</div></div>
+    </div>
+    ${x.place?`<div class="detail-body"><b>Ort:</b> ${esc(x.place)}</div>`:""}
+    ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${canEditGeneral()?`<div class="actions"><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
+   </div></div>`;
+ }
+ if(type==="task"){
+   return `<div class="modalbg" onclick="if(event.target===this)closeItemDetail()"><div class="detail-sheet">
+    <div class="section-head"><span class="pill">✓ Aufgabe</span><button class="ghost" onclick="closeItemDetail()">Schließen</button></div>
+    <div class="detail-title">${esc(x.title)}</div>
+    <div class="detail-grid">
+      <div class="detail-box"><div class="meta">Fällig</div><div class="title">${fmtDate(x.due)} · ${esc(x.time||"")}</div></div>
+      <div class="detail-box"><div class="meta">Zuständig</div><div class="title">${esc(x.who)}</div></div>
+      <div class="detail-box"><div class="meta">Priorität</div><div class="title">${x.prio==="high"?"Dringend":x.prio==="med"?"Wichtig":"Normal"}</div></div>
+      <div class="detail-box"><div class="meta">Wiederholung</div><div class="title">${repeatLabel(x.repeat)}</div></div>
+    </div>
+    ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${canEditGeneral()?`<div class="actions"><button class="primary" onclick="toggleTask('${x.id}');state.itemDetail=null;render()">${x.done?"Wieder öffnen":"Als erledigt markieren"}</button><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
+   </div></div>`;
+ }
+ if(type==="shop"){
+   const list=db.shoppingLists.find(l=>l.id===x.listId);
+   return `<div class="modalbg" onclick="if(event.target===this)closeItemDetail()"><div class="detail-sheet">
+    <div class="section-head"><span class="pill">🛒 Einkauf</span><button class="ghost" onclick="closeItemDetail()">Schließen</button></div>
+    <div class="detail-title">${esc(x.name)}</div>
+    <div class="detail-grid">
+      <div class="detail-box"><div class="meta">Liste</div><div class="title">${esc(list?.name||"Einkauf")}</div></div>
+      <div class="detail-box"><div class="meta">Kategorie</div><div class="title">${esc(x.cat)}</div></div>
+      <div class="detail-box"><div class="meta">Hinzugefügt von</div><div class="title">${esc(x.by)}</div></div>
+      <div class="detail-box"><div class="meta">Menge</div><div class="qty-control"><button onclick="adjustShopQty('${x.id}',-1)">−</button><b>${esc(x.qty)}</b><button onclick="adjustShopQty('${x.id}',1)">+</button></div></div>
+    </div>
+    ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${canEditGeneral()?`<div class="actions"><button class="primary" onclick="toggleShop('${x.id}');state.itemDetail=null;render()">${x.done?"Wieder auf Liste":"Erledigt"}</button><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
+   </div></div>`;
+ }
+ return "";
+}
+function quickMenuHTML(){
+ return `<div class="modalbg" onclick="if(event.target===this){state.quickMenu=false;render()}"><div class="detail-sheet">
+   <div class="section-head"><div><div class="detail-title">Schnell hinzufügen</div><div class="meta">Was möchtest du eintragen?</div></div><button class="ghost" onclick="state.quickMenu=false;render()">Schließen</button></div>
+   <div class="quick-sheet-grid">
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('event')"><b>📅</b>Termin</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('task')"><b>✓</b>Aufgabe</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('shop')"><b>🛒</b>Einkauf</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('note')"><b>📌</b>Pinnwand</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('inbox')"><b>📥</b>Inbox</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('meal')"><b>🍲</b>Gericht</button>
+   </div>
+ </div></div>`;
+}
 
 function sortedNotes(){
  return [...db.notes].sort((a,b)=>{
@@ -995,12 +1108,16 @@ function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
 function modalHTML(){const t=state.modal.type, f={
 hero:`<div class="full"><label>Großer Text</label><input id="fHeroTitle" value="${esc(db.settings.heroTitle)}"></div><div class="full"><label>Unterzeile</label><input id="fHeroSubtitle" value="${esc(db.settings.heroSubtitle)}"></div>`,
-event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option><option value="10080">1 Woche vorher</option></select></div>`,
-task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>`,
-shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><label>Liste</label><select id="fList">${listOptions()}</select></div><div><label>Menge</label><input id="fQty"></div><div><label>Kategorie</label><input id="fCat" placeholder="z.B. Backwaren"></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div>`,
+event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option><option value="10080">1 Woche vorher</option></select></div><div class="full"><label>Notiz optional</label><textarea id="fNote" placeholder="Weitere Infos zum Termin …"></textarea></div>`,
+task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div><div class="full"><label>Notiz optional</label><textarea id="fNote" placeholder="Details zur Aufgabe …"></textarea></div>`,
+shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><label>Liste</label><select id="fList">${listOptions()}</select></div><div><label>Menge</label><input id="fQty"></div><div><label>Kategorie</label><input id="fCat" placeholder="z.B. Backwaren"></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz optional</label><textarea id="fNote" placeholder="Marke, Größe, Variante …"></textarea></div>`,
 shoppingList:`<div class="full"><label>Name der Liste</label><input id="fTitle" placeholder="z.B. Apotheke"></div><div><label>Emoji</label><input id="fIcon" value="🛍️"></div>`,
 wish:`<div class="full"><label>Wunsch</label><input id="fTitle"></div><div><label>Für wen?</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Link optional</label><input id="fUrl" type="url"></div>`,
 occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Art</label><select id="fKind"><option>Geburtstag</option><option>Jahrestag</option><option>Feiertag</option><option>Sonstiges</option></select></div><div><label>Erinnerung Tage vorher</label><input id="fRemind" type="number" value="7"></div>`,
+
+eventEdit:`${(()=>{const e=db.events.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(e.title||"")}"></div><div><label>Datum</label><input id="fDate" type="date" value="${esc(e.date||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(e.time||"18:00")}"></div><div><label>Kalender</label><select id="fCalendar"><option value="family" ${e.calendarOwner==="family"?"selected":""}>♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}" ${e.calendarOwner===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace" value="${esc(e.place||"")}"></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"],[10080,"1 Woche vorher"]].map(([v,l])=>`<option value="${v}" ${Number(e.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(e.note||"")}</textarea></div>`})()}`,
+taskEdit:`${(()=>{const t=db.tasks.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Aufgabe</label><input id="fTitle" value="${esc(t.title||"")}"></div><div><label>Fällig</label><input id="fDate" type="date" value="${esc(t.due||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(t.time||"18:00")}"></div><div><label>Zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${t.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low" ${t.prio==="low"?"selected":""}>Normal</option><option value="med" ${t.prio==="med"?"selected":""}>Wichtig</option><option value="high" ${t.prio==="high"?"selected":""}>Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none" ${t.repeat==="none"?"selected":""}>Einmalig</option><option value="daily" ${t.repeat==="daily"?"selected":""}>Täglich</option><option value="weekly" ${t.repeat==="weekly"?"selected":""}>Wöchentlich</option><option value="monthly" ${t.repeat==="monthly"?"selected":""}>Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"]].map(([v,l])=>`<option value="${v}" ${Number(t.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(t.note||"")}</textarea></div>`})()}`,
+shopEdit:`${(()=>{const s=db.shopping.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Artikel</label><input id="fTitle" value="${esc(s.name||"")}"></div><div><label>Liste</label><select id="fList">${db.shoppingLists.map(l=>`<option value="${l.id}" ${s.listId===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div><div><label>Menge</label><input id="fQty" value="${esc(s.qty||"")}"></div><div><label>Kategorie</label><input id="fCat" value="${esc(s.cat||"")}"></div><div><label>Von</label><select id="fPerson">${db.family.map(p=>`<option ${s.by===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(s.note||"")}</textarea></div>`})()}`,
 note:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Samstag Kuchen backen"></div><div><label>Kategorie</label><select id="fCategory"><option>Allgemein</option><option>Familie</option><option>Schule</option><option>Haus</option><option>Wichtig</option><option>Freizeit</option></select></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Text</label><textarea id="fBody" placeholder="Hier darf ruhig mehr stehen …"></textarea></div>`,
 noteEdit:`${(()=>{const n=db.notes.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(n.title||"")}"></div><div><label>Kategorie</label><select id="fCategory">${["Allgemein","Familie","Schule","Haus","Wichtig","Freizeit"].map(c=>`<option ${n.category===c?"selected":""}>${c}</option>`).join("")}</select></div><div><label>Von</label><select id="fPerson">${peopleOptions().replace(`>${esc(n.author)}<`,` selected>${esc(n.author)}<`)}</select></div><div class="full"><label>Text</label><textarea id="fBody">${esc(n.body||n.text||"")}</textarea></div>`})()}`,
 person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</label><select id="fRole"><option>Elternteil</option><option>Kind</option><option>Gast</option></select></div>`,
@@ -1009,11 +1126,15 @@ inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeh
 maintenance:`<div class="full"><label>Wartung</label><input id="fTitle" placeholder="z. B. Rauchmelder prüfen"></div><div><label>Bereich</label><input id="fArea" placeholder="z. B. Technik"></div><div><label>Nächster Termin</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Intervall in Monaten</label><input id="fInterval" type="number" min="1" value="12"></div><div><label>Erinnerung Tage vorher</label><input id="fReminderDays" type="number" min="0" value="30"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeholder="z. B. Waschmaschine"></div><div><label>Ort</label><input id="fArea" placeholder="Hauswirtschaft"></div><div><label>Kaufdatum</label><input id="fPurchase" type="date"></div><div><label>Garantie bis</label><input id="fWarranty" type="date"></div><div><label>Seriennummer</label><input id="fSerial"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`
-}[t];return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>Hinzufügen</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
+}[t];const editing=t.endsWith("Edit");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(t!=="hero"&&t!=="noteEdit"&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0)});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){db.settings.heroTitle=val("fHeroTitle")||"FamilienHub";db.settings.heroSubtitle=val("fHeroSubtitle")||"";}
+function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){db.settings.heroTitle=val("fHeroTitle")||"FamilienHub";db.settings.heroSubtitle=val("fHeroSubtitle")||"";}
 if(t==="note"){const body=val("fBody");db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{}});}
-if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal"){const ingredients=val("fIngredients").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);db.meals.push({id,day:val("fDay"),title,ingredients});}
+if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}
+if(t==="eventEdit"){const e=db.events.find(x=>x.id===state.modal.editId);if(e){const owner=val("fCalendar")||"family";e.title=title;e.date=val("fDate");e.time=val("fTime");e.calendarOwner=owner;e.person=calendarName(owner)==="Familie"?"Alle":calendarName(owner);e.place=val("fPlace");e.remindMinutes=Number(val("fReminder")||0);e.note=val("fNote");}}
+if(t==="taskEdit"){const x=db.tasks.find(x=>x.id===state.modal.editId);if(x){x.title=title;x.due=val("fDate");x.time=val("fTime");x.who=val("fPerson");x.prio=val("fPrio");x.repeat=val("fRepeat");x.remindMinutes=Number(val("fReminder")||0);x.note=val("fNote");}}
+if(t==="shopEdit"){const s=db.shopping.find(x=>x.id===state.modal.editId);if(s){s.name=title;s.listId=val("fList");s.qty=val("fQty");s.cat=val("fCat")||"Sonstiges";s.by=val("fPerson");s.note=val("fNote");}}
+if(t==="person")db.family.push({id,name:title,role:val("fRole"),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});if(t==="meal"){const ingredients=val("fIngredients").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);db.meals.push({id,day:val("fDay"),title,ingredients});}
 if(t==="inbox")db.inbox.unshift({id:"i"+Date.now(),text:title,author:currentDisplayName(),created:new Date().toISOString()});
 if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),reminderDays:Number(val("fReminderDays")||0),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
 if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now(),name:title,location:val("fArea")||"Haus",purchaseDate:val("fPurchase"),warrantyUntil:val("fWarranty"),serial:val("fSerial"),note:val("fNote")});}
