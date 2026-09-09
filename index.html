@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v6</title>
+<title>FamilienHub v6.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -156,6 +156,131 @@ let cloudPushTimer=null;
 let cloudPollingStarted=false;
 let syncBusy=false;
 let lastSyncSnapshot=null;
+let passwordRecovery={active:false,accessToken:"",refreshToken:""};
+
+function passwordResetRedirectUrl(){
+  const u=new URL(window.location.href);
+  u.hash="";
+  u.search="";
+  return u.toString();
+}
+
+async function requestPasswordReset(){
+  const u=document.getElementById("cUrl")?.value.trim();
+  const k=document.getElementById("cKey")?.value.trim();
+  if(u)cloud.url=u;
+  if(k)cloud.anonKey=k;
+  saveCloud();
+
+  const email=val("cEmail");
+  if(!email)return alert("Bitte zuerst deine E-Mail-Adresse eingeben.");
+  if(!cloud.url||!cloud.anonKey)return alert("Project URL und Publishable Key fehlen.");
+
+  try{
+    const redirectTo=passwordResetRedirectUrl();
+    const r=await fetch(
+      cloud.url.replace(/\/$/,"")+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirectTo),
+      {
+        method:"POST",
+        headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},
+        body:JSON.stringify({email})
+      }
+    );
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok)throw new Error(d.msg||d.message||d.error_description||"Reset-Mail konnte nicht gesendet werden.");
+    alert("Wenn zu dieser E-Mail ein Konto existiert, wurde ein Link zum Zurücksetzen des Passworts gesendet.");
+  }catch(e){
+    alert("Passwort-Reset fehlgeschlagen: "+e.message);
+  }
+}
+
+function detectPasswordRecovery(){
+  const raw=window.location.hash.replace(/^#/,"");
+  if(!raw)return false;
+  const p=new URLSearchParams(raw);
+  const type=p.get("type");
+  const access=p.get("access_token");
+  if(type!=="recovery"||!access)return false;
+
+  passwordRecovery={
+    active:true,
+    accessToken:access,
+    refreshToken:p.get("refresh_token")||""
+  };
+
+  cloud.accessToken=access;
+  cloud.refreshToken=passwordRecovery.refreshToken;
+  cloud.enabled=true;
+  saveCloud();
+
+  state.view="passwordReset";
+
+  // Recovery-Token nach dem Einlesen aus der sichtbaren URL entfernen.
+  history.replaceState(null,"",window.location.pathname+window.location.search);
+  return true;
+}
+
+async function setRecoveredPassword(){
+  const p1=val("newPassword");
+  const p2=val("newPassword2");
+  if(p1.length<8)return alert("Das neue Passwort muss mindestens 8 Zeichen lang sein.");
+  if(p1!==p2)return alert("Die beiden Passwörter stimmen nicht überein.");
+  if(!cloud.url||!cloud.anonKey)return alert("Supabase-Verbindung fehlt auf diesem Gerät.");
+  const token=passwordRecovery.accessToken||cloud.accessToken;
+  if(!token)return alert("Der Wiederherstellungs-Link ist nicht mehr gültig. Fordere bitte einen neuen Link an.");
+
+  try{
+    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/user",{
+      method:"PUT",
+      headers:{
+        apikey:cloud.anonKey,
+        Authorization:"Bearer "+token,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({password:p1})
+    });
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok)throw new Error(d.msg||d.message||d.error_description||"Passwort konnte nicht geändert werden.");
+
+    if(d.id)cloud.userId=d.id;
+    if(d.email)cloud.email=d.email;
+    cloud.enabled=true;
+    saveCloud();
+    passwordRecovery={active:false,accessToken:"",refreshToken:""};
+
+    await discoverMyFamily();
+    if(cloud.familyId){
+      await loadCloudMembership();
+      await initializeRecordSync();
+      startCloudPolling();
+    }
+    state.view="cloud";
+    render();
+    alert("Dein Passwort wurde geändert. Du bist wieder angemeldet.");
+  }catch(e){
+    alert("Passwort konnte nicht geändert werden: "+e.message);
+  }
+}
+
+function passwordResetView(){
+  return `<div class="section-title"><div><h2>Neues Passwort</h2><div class="small">Lege ein neues Passwort für dein FamilienHub-Konto fest.</div></div></div>
+  <div class="grid">
+    <section class="card s6">
+      <h3>🔑 Passwort zurücksetzen</h3>
+      <div class="form">
+        <div class="full"><label>Neues Passwort</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="mindestens 8 Zeichen"></div>
+        <div class="full"><label>Passwort wiederholen</label><input id="newPassword2" type="password" autocomplete="new-password"></div>
+      </div>
+      <button class="primary" style="margin-top:12px" onclick="setRecoveredPassword()">Neues Passwort speichern</button>
+    </section>
+    <section class="card s6">
+      <h3>ℹ️ Hinweis</h3>
+      <div class="notice">Diese Seite funktioniert nur nach dem Öffnen des Passwort-Reset-Links aus der E-Mail.</div>
+      <div class="notice warning" style="margin-top:10px">Falls der Link abgelaufen ist, gehe zurück zu Mehr → Familien-Synchronisierung und fordere eine neue Reset-Mail an.</div>
+    </section>
+  </div>`;
+}
+
 const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings"];
 
 function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
@@ -425,7 +550,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
@@ -602,11 +727,11 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v6 synchronisiert einzelne Termine, Aufgaben, Inbox- und Hausdaten statt den kompletten Familienstand.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v6.1 ergänzt zusätzlich einen sicheren Passwort-Reset per E-Mail.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
-function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,house:houseView,roles:rolesView,cloud:cloudView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
+function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
 function toggleWish(id){if(!requireGeneralEdit())return;const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
@@ -666,7 +791,8 @@ if("serviceWorker" in navigator){
 }
 
 window.state=state;
-if(cloud.enabled&&cloud.accessToken){bootstrapCloud()}
+const recoveryDetected=detectPasswordRecovery();
+if(!recoveryDetected&&cloud.enabled&&cloud.accessToken){bootstrapCloud()}
 render();
 </script>
 </body>
