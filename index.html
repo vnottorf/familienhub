@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v6.2</title>
+<title>FamilienHub v6.2.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -505,7 +505,7 @@ async function cloudSyncCycle(silent=false){
 async function cloudPush(){return cloudSyncCycle(false)}
 async function cloudPull(silent=false){return cloudSyncCycle(silent)}
 function scheduleCloudPush(){if(!cloud.enabled||!cloud.familyId)return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(()=>cloudSyncCycle(true),700)}
-function startCloudPolling(){if(cloudPollingStarted)return;cloudPollingStarted=true;setInterval(()=>{if(cloud.enabled&&cloud.familyId)cloudSyncCycle(true).then(()=>{if(!["cloud","roles"].includes(state.view))render()})},6000)}
+function startCloudPolling(){if(cloudPollingStarted)return;cloudPollingStarted=true;setInterval(()=>{if(cloud.enabled&&cloud.familyId)cloudSyncCycle(true).then(()=>{if(!state.modal&&!["cloud","roles"].includes(state.view))render()})},6000)}
 
 async function loadReservations(){
   if(!cloud.familyId||!cloud.accessToken)return;
@@ -567,7 +567,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
@@ -830,13 +830,36 @@ function cloudView(){
 }
 
 function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
-function render(){const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());checkReminders()}
+function captureModalDraft(){
+ if(!state.modal)return;
+ const modal=document.querySelector(".modal");
+ if(!modal)return;
+ const values={};
+ modal.querySelectorAll("input,select,textarea").forEach(el=>{
+   if(el.id)values[el.id]=el.value;
+ });
+ state.modal.values=values;
+}
+function restoreModalDraft(){
+ if(!state.modal?.values)return;
+ for(const [id,value] of Object.entries(state.modal.values)){
+   const el=document.getElementById(id);
+   if(el)el.value=value;
+ }
+}
+function render(){
+ captureModalDraft();
+ const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+ document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
+ restoreModalDraft();
+ checkReminders();
+}
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;save();render()}
 function toggleWish(id){if(!requireGeneralEdit())return;const w=db.wishes.find(x=>x.id===id);w.reserved=!w.reserved;w.reservedBy=w.reserved?db.settings.currentUser:null;save();render()}
 function toggleDemo(id){if(!requireGeneralEdit())return;const d=db.demoDevices.find(x=>x.id===id);d.state=(d.state==="on"?"off":"on");save();render()}
 function toggleTask(id){if(!requireGeneralEdit())return;const t=db.tasks.find(x=>x.id===id);if(!t.done){t.done=true;t.completedAt=new Date().toISOString();if(t.repeat!=="none"){const nd=new Date(t.due+"T12:00");if(t.repeat==="daily")nd.setDate(nd.getDate()+1);if(t.repeat==="weekly")nd.setDate(nd.getDate()+7);if(t.repeat==="monthly")nd.setMonth(nd.getMonth()+1);db.tasks.push({...t,id:"t"+Date.now(),due:nd.toISOString().slice(0,10),done:false,completedAt:null})}}else{t.done=false;t.completedAt=null}save();render()}
-function openModal(t){state.modal={type:t};render()}function closeModal(){state.modal=null;render()}
+function openModal(t){state.modal={type:t,values:{}};render()}function closeModal(){state.modal=null;render()}
 function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
 function modalHTML(){const t=state.modal.type, f={
