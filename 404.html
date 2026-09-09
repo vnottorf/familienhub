@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v6.2.1</title>
+<title>FamilienHub v6.2.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -567,12 +567,44 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v6.2.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
 function shopRow(s){return `<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div></div>${avatar(s.by,true)}</div>`}
 function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
+
+
+function mealDayOffset(label){
+  const raw=String(label||"").trim().toLowerCase();
+  if(raw==="heute")return 0;
+  if(raw==="morgen")return 1;
+  if(raw==="übermorgen"||raw==="uebermorgen")return 2;
+
+  const weekdayMap={
+    "sonntag":0,"so":0,
+    "montag":1,"mo":1,
+    "dienstag":2,"di":2,
+    "mittwoch":3,"mi":3,
+    "donnerstag":4,"do":4,
+    "freitag":5,"fr":5,
+    "samstag":6,"sa":6
+  };
+  const target=weekdayMap[raw];
+  if(target===undefined)return 999;
+  const now=new Date();
+  const current=now.getDay();
+  let diff=(target-current+7)%7;
+  // Wenn derselbe Wochentag ausgeschrieben ist, ist damit "heute" gemeint.
+  return diff;
+}
+function sortedMeals(){
+  return [...db.meals].sort((a,b)=>{
+    const da=mealDayOffset(a.day),dbb=mealDayOffset(b.day);
+    if(da!==dbb)return da-dbb;
+    return String(a.title||"").localeCompare(String(b.title||""),"de");
+  });
+}
 
 function todayView(){
  const td=todayISO(), ev=db.events.filter(e=>e.date===td).sort((a,b)=>a.time.localeCompare(b.time)), tasks=db.tasks.filter(t=>!t.done), shopping=db.shopping.filter(s=>!s.done);
@@ -584,7 +616,7 @@ function todayView(){
   <section class="card s6"><h3>✓ Offene Aufgaben</h3>${tasks.slice(0,4).map(taskRow).join("")}</section>
   <section class="card s6"><h3>🛒 Einkauf</h3>${shopping.slice(0,4).map(shopRow).join("")}</section>
   <section class="card s6"><h3>📌 Pinnwand</h3>${db.notes.slice(0,2).map(n=>`<div class="row">${avatar(n.author,true)}<div class="grow"><div class="title">${esc(n.text)}</div><div class="meta">${esc(n.author)}</div></div></div>`).join("")}</section>
-  <section class="card s6"><h3>🍲 Essensplan</h3>${db.meals.slice(0,3).map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="title">${esc(m.title)}</div></div>`).join("")}</section>
+  <section class="card s6"><h3>🍲 Essensplan</h3>${sortedMeals().slice(0,5).map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="title">${esc(m.title)}</div></div>`).join("")||'<div class="notice">Noch nichts geplant.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('meals')">Essensplan öffnen</button></section>
   <section class="card s6"><h3>📥 Familien-Inbox</h3>${db.inbox.slice(0,3).map(i=>`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)}</div></div></div>`).join("")||'<div class="notice success">Inbox ist leer.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('inbox')">Inbox öffnen</button></section>
   <section class="card s6"><h3>🛠️ Haus & Wartung</h3>${dueMaintenance().slice(0,3).map(x=>`<div class="row"><div class="grow"><div class="title">${esc(x.title)}</div><div class="meta">${esc(x.area)} · ${fmtDate(x.nextDate)}</div></div>${maintenanceStatus(x)}</div>`).join("")||'<div class="notice success">Aktuell nichts fällig.</div>'}<button class="ghost" style="margin-top:10px" onclick="go('house')">Hausakte öffnen</button></section>
   <section class="card s12"><h3>🏠 Zuhause</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities.slice(0,6):db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div><div class="notice" style="margin-top:10px">${db.ha.connected?"Mit Home Assistant verbunden":"Lokale Demo – echte Home-Assistant-Verbindung unter Mehr → Zuhause"}</div></section>
@@ -661,7 +693,7 @@ function addMealToShopping(id){
 function mealsView(){
  return `<div class="section-title"><div><h2>Essensplan</h2><div class="small">Gerichte planen und Zutaten direkt auf die Einkaufsliste setzen.</div></div><button class="primary" onclick="openModal('meal')">+ Gericht</button></div>
  <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
- <section class="card s12">${db.meals.map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
+ <section class="card s12">${sortedMeals().map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
 }
 function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
