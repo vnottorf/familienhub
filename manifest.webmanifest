@@ -1,11 +1,10 @@
 {
   "name": "FamilienHub",
   "short_name": "FamilienHub",
-  "description": "Familienkalender, Aufgaben, Einkauf, Wünsche und Smart Home.",
+  "description": "Familienkalender, Aufgaben, Einkauf, Inbox, Haus & Smart Home.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#f6efe7",
   "theme_color": "#f6efe7",
   "icons": [
