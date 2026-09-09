@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v8</title>
+<title>FamilienHub v8.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -96,6 +96,21 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .visibility{border:0;border-radius:999px;padding:6px 10px;background:#e6efe5;color:#587057}
 .visibility.off{background:#eee8e3;color:#8b7d73}
 .hero-buttons{display:flex;gap:7px;flex-wrap:wrap}
+.media-picker{border:1px dashed #d8c7ba;border-radius:16px;padding:13px;background:#fffaf6}
+.media-help{font-size:11px;color:var(--muted);margin-top:6px}
+.media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+.media-card{position:relative;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#f7efe8;min-height:90px}
+.media-card img{display:block;width:100%;height:190px;object-fit:cover}
+.media-file{display:flex;align-items:center;gap:10px;padding:15px;min-height:90px}
+.media-file-icon{font-size:30px}
+.media-card-actions{position:absolute;right:7px;top:7px;display:flex;gap:5px}
+.media-card-actions button{border:0;border-radius:999px;padding:6px 9px;background:#ffffffdd;box-shadow:0 2px 8px #0002}
+.person-toolbar{display:flex;gap:7px;flex-wrap:wrap}
+.person-actions{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.danger-soft{border:1px solid #e1c3bd;background:#fff7f5;color:#a55348;border-radius:12px;padding:8px 10px}
+.uploading{opacity:.65;pointer-events:none}
+@media(max-width:620px){.media-grid{grid-template-columns:1fr}.media-card img{height:220px}}
+
 
 
 
@@ -220,6 +235,7 @@ if(!Array.isArray(db.dashboardConfig)||!db.dashboardConfig.length){
 if(!Array.isArray(db.activity))db.activity=[];
 for(const n of db.notes){
   if(!Array.isArray(n.comments))n.comments=[];
+  if(!Array.isArray(n.attachments))n.attachments=[];
 }
 for(const n of db.notes){
   if(!n.title)n.title=(n.text||"Pinnwand").split("\n")[0].slice(0,70);
@@ -388,6 +404,123 @@ async function api(path,opts={}){
   let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
   if(!r.ok)throw new Error((data&&data.msg)||(data&&data.message)||(data&&data.error_description)||("HTTP "+r.status));
   return data;
+}
+
+const MEDIA_BUCKET="familienhub-media";
+const mediaObjectUrls=new Map();
+
+function safeFileName(name){
+  return String(name||"datei")
+    .normalize("NFKD").replace(/[^\w.\-]+/g,"-")
+    .replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,80)||"datei";
+}
+function mediaExt(file){
+  const n=file.name||"",m=n.match(/\.([a-zA-Z0-9]{1,6})$/);
+  if(m)return m[1].toLowerCase();
+  if(file.type==="image/jpeg")return "jpg";
+  if(file.type==="image/png")return "png";
+  if(file.type==="image/webp")return "webp";
+  if(file.type==="application/pdf")return "pdf";
+  return "bin";
+}
+async function prepareMediaFile(file){
+  if(!file)return null;
+  if(file.type==="application/pdf"){
+    if(file.size>5*1024*1024)throw new Error(`${file.name}: PDF ist größer als 5 MB.`);
+    return {blob:file,type:file.type,name:file.name,ext:"pdf"};
+  }
+  if(!file.type.startsWith("image/"))throw new Error(`${file.name}: Nur Bilder und PDF werden unterstützt.`);
+  const data=await new Promise((resolve,reject)=>{
+    const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);
+  });
+  const img=await new Promise((resolve,reject)=>{
+    const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=data;
+  });
+  const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height));
+  const w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
+  const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+  canvas.getContext("2d").drawImage(img,0,0,w,h);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.82));
+  if(!blob)throw new Error(`${file.name}: Bild konnte nicht verarbeitet werden.`);
+  return {blob,type:"image/jpeg",name:file.name.replace(/\.[^.]+$/,"")+".jpg",ext:"jpg"};
+}
+async function uploadNoteFiles(noteId,files){
+  const list=[...(files||[])].slice(0,4);
+  if(!list.length)return [];
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)
+    throw new Error("Bilder/Anhänge benötigen die Familien-Synchronisierung mit Supabase.");
+  const uploaded=[];
+  for(const original of list){
+    const p=await prepareMediaFile(original);
+    const objectId=(crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2));
+    const path=`${cloud.familyId}/${noteId}/${objectId}.${p.ext}`;
+    const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+MEDIA_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+    const r=await fetch(url,{
+      method:"POST",
+      headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken,"Content-Type":p.type,"x-upsert":"false"},
+      body:p.blob
+    });
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok)throw new Error(d.message||d.error||`${original.name}: Upload fehlgeschlagen (${r.status})`);
+    uploaded.push({id:objectId,name:safeFileName(p.name),type:p.type,path,size:p.blob.size});
+  }
+  return uploaded;
+}
+async function fetchAttachmentBlob(att){
+  const key=att.path;
+  if(mediaObjectUrls.has(key))return mediaObjectUrls.get(key);
+  if(!cloud.accessToken)throw new Error("Bitte anmelden, um den Anhang zu öffnen.");
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/authenticated/"+MEDIA_BUCKET+"/"+att.path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok){let d={};try{d=await r.json()}catch{};throw new Error(d.message||`Anhang konnte nicht geladen werden (${r.status})`)}
+  const blob=await r.blob(),obj=URL.createObjectURL(blob);
+  mediaObjectUrls.set(key,obj);
+  return obj;
+}
+async function loadNoteAttachments(noteId){
+  const host=document.getElementById("noteAttachments");
+  const n=db.notes.find(x=>x.id===noteId);
+  if(!host||!n)return;
+  const atts=n.attachments||[];
+  if(!atts.length){host.innerHTML="";return}
+  host.innerHTML=atts.map(a=>`<div class="media-card"><div class="media-file"><span class="media-file-icon">⏳</span><div><b>${esc(a.name)}</b><div class="meta">wird geladen …</div></div></div></div>`).join("");
+  const cards=[];
+  for(const a of atts){
+    try{
+      const url=await fetchAttachmentBlob(a);
+      if((a.type||"").startsWith("image/")){
+        cards.push(`<div class="media-card"><img src="${url}" alt="${esc(a.name)}" onclick="openNoteAttachment('${noteId}','${a.id}')"><div class="media-card-actions">${canEditGeneral()?`<button title="Entfernen" onclick="event.stopPropagation();removeNoteAttachment('${noteId}','${a.id}')">✕</button>`:""}</div></div>`);
+      }else{
+        cards.push(`<div class="media-card" onclick="openNoteAttachment('${noteId}','${a.id}')"><div class="media-file"><span class="media-file-icon">📄</span><div class="grow"><b>${esc(a.name)}</b><div class="meta">${Math.max(1,Math.round((a.size||0)/1024))} KB · antippen zum Öffnen</div></div></div><div class="media-card-actions">${canEditGeneral()?`<button title="Entfernen" onclick="event.stopPropagation();removeNoteAttachment('${noteId}','${a.id}')">✕</button>`:""}</div></div>`);
+      }
+    }catch(e){
+      cards.push(`<div class="media-card"><div class="media-file"><span class="media-file-icon">⚠️</span><div><b>${esc(a.name)}</b><div class="meta">${esc(e.message)}</div></div></div></div>`);
+    }
+  }
+  if(document.getElementById("noteAttachments"))document.getElementById("noteAttachments").innerHTML=cards.join("");
+}
+async function openNoteAttachment(noteId,attId){
+  const n=db.notes.find(x=>x.id===noteId),a=n?.attachments?.find(x=>x.id===attId);if(!a)return;
+  try{
+    const url=await fetchAttachmentBlob(a);
+    const link=document.createElement("a");link.href=url;link.target="_blank";link.rel="noopener";link.click();
+  }catch(e){alert(e.message)}
+}
+async function deleteStorageObject(path){
+  if(!cloud.enabled||!cloud.accessToken||!path)return;
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+MEDIA_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{method:"DELETE",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok&&r.status!==404){let d={};try{d=await r.json()}catch{};throw new Error(d.message||"Datei konnte nicht entfernt werden.")}
+}
+async function removeNoteAttachment(noteId,attId){
+  if(!requireGeneralEdit())return;
+  const n=db.notes.find(x=>x.id===noteId),a=n?.attachments?.find(x=>x.id===attId);if(!n||!a)return;
+  if(!confirm(`„${a.name}“ von der Pinnwand entfernen?`))return;
+  try{await deleteStorageObject(a.path)}catch(e){return alert(e.message)}
+  n.attachments=n.attachments.filter(x=>x.id!==attId);
+  const old=mediaObjectUrls.get(a.path);if(old){URL.revokeObjectURL(old);mediaObjectUrls.delete(a.path)}
+  addActivity("🗑️",`hat einen Anhang von „${n.title}“ entfernt.`,"note",n.id);
+  save();render();
 }
 function setCloudStatus(message,ok=false){
   const e=document.getElementById("cloudStatus");
@@ -643,7 +776,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;render()}
 function taskRow(t){return `<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`}
@@ -939,11 +1072,12 @@ function notePreview(n){
      <div class="title">${n.pinned?"📌 ":""}${esc(n.title||"Pinnwand")}</div>
      <div class="meta"><span class="note-category">${esc(n.category||"Allgemein")}</span>${esc(n.author)}</div>
      <div class="meta note-body-preview">${esc(n.body||n.text||"")}</div>
+     ${n.attachments?.length?`<div class="meta" style="margin-top:5px">📎 ${n.attachments.length} Anhang${n.attachments.length===1?"":"e"}</div>`:""}
    </div>
    <span class="muted">›</span>
  </div>`;
 }
-function openNote(id){state.noteDetailId=id;render()}
+function openNote(id){state.noteDetailId=id;render();setTimeout(()=>loadNoteAttachments(id),30)}
 function closeNote(){state.noteDetailId=null;render()}
 function noteDetailHTML(){
  const n=db.notes.find(x=>x.id===state.noteDetailId);
@@ -955,6 +1089,7 @@ function noteDetailHTML(){
    <div class="detail-title">${n.pinned?"📌 ":""}${esc(n.title||"Pinnwand")}</div>
    <div class="meta">${esc(n.author)} · ${n.created?new Date(n.created).toLocaleString("de-DE"):""}</div>
    <div class="detail-body">${esc(n.body||n.text||"")}</div>
+   ${n.attachments?.length?`<div id="noteAttachments" class="media-grid"></div>`:""}
    <div class="reactions">${reactions.map(r=>{
       const users=n.reactions?.[r]||[];
       const active=users.includes(who);
@@ -991,9 +1126,12 @@ function togglePin(id){
  const n=db.notes.find(x=>x.id===id);if(!n)return;
  n.pinned=!n.pinned;addActivity("📌",n.pinned?`hat „${n.title}“ angeheftet.`:`hat „${n.title}“ von oben gelöst.`,"note",n.id);save();render();
 }
-function removeNoteFromDetail(id){
+async function removeNoteFromDetail(id){
  if(!requireGeneralEdit())return;
- db.notes=db.notes.filter(x=>x.id!==id);state.noteDetailId=null;save();render();
+ const n=db.notes.find(x=>x.id===id);if(!n)return;
+ if(!confirm(`„${n.title}“ wirklich löschen?`))return;
+ for(const a of (n.attachments||[])){try{await deleteStorageObject(a.path)}catch(e){console.warn(e)}}
+ db.notes=db.notes.filter(x=>x.id!==id);state.noteDetailId=null;addActivity("🗑️",`hat „${n.title}“ von der Pinnwand gelöscht.`,"note",id);save();render();
 }
 function editNote(id){
  const n=db.notes.find(x=>x.id===id);if(!n)return;
@@ -1005,7 +1143,46 @@ function notesView(){
  return `<div class="section-title"><div><h2>Pinnwand</h2><div class="small">Tippe auf einen Eintrag, um alles zu lesen, zu reagieren oder ihn zu bearbeiten.</div></div><button class="primary" onclick="openModal('note')">+ Eintrag</button></div>
  <section class="card s12">${sortedNotes().map(notePreview).join("")||'<div class="notice">Noch nichts auf der Pinnwand.</div>'}</section>`;
 }
-function familyView(){return `<div class="section-title"><h2>Unsere Familie</h2>${canManageFamily()?`<button class="primary" onclick="openModal('person')">+ Person</button>`:""}</div><div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div>${canManageFamily()?`<div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button></div>`:""}</div></section>`).join("")}</div>${!canManageFamily()?`<div class="notice" style="margin-top:12px">Familienprofile können nur von einem Eltern-Profil verwaltet werden.</div>`:""}`;}
+function familyView(){
+ const hasDemo=db.family.some(p=>["p1","p2","p3","p4"].includes(p.id));
+ return `<div class="section-title"><div><h2>Unsere Familie</h2><div class="small">Profile für Kalender, Aufgaben und Avatare.</div></div>${canManageFamily()?`<div class="person-toolbar"><button class="primary" onclick="openModal('person')">+ Person</button>${cloud.enabled&&cloud.familyId?`<button class="ghost" onclick="importCloudProfiles()">Cloud-Mitglieder übernehmen</button>`:""}${hasDemo?`<button class="danger-soft" onclick="removeDemoPeople()">Beispielpersonen entfernen</button>`:""}</div>`:""}</div>
+ <div class="grid">${db.family.map(p=>`<section class="card s6"><div class="person-card">${avatar(p.name)}<div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.role)}</div></div>${canManageFamily()?`<div class="person-actions"><button class="ghost" onclick="editPhoto('${p.id}')">Bild ändern</button><button class="danger-soft" onclick="removeFamilyPerson('${p.id}')">Entfernen</button></div>`:""}</div></section>`).join("")||'<section class="card s12"><div class="notice">Noch keine Familienprofile angelegt.</div></section>'}</div>
+ ${!canManageFamily()?`<div class="notice" style="margin-top:12px">Familienprofile können nur von einem Eltern-Profil verwaltet werden.</div>`:""}
+ ${canManageFamily()&&cloud.enabled?`<div class="notice" style="margin-top:12px">Hinweis: Diese Profile sind die sichtbaren Personen in FamilienHub. Die echten Anmeldekonten/Rollen verwaltest du separat unter <b>Mehr → Rollen & Rechte</b>.</div>`:""}`;
+}
+function removeFamilyPerson(id){
+ if(!requireParent())return;
+ const p=db.family.find(x=>x.id===id);if(!p)return;
+ if(!confirm(`Profil „${p.name}“ entfernen? Termine und Aufgaben bleiben erhalten.`))return;
+ db.family=db.family.filter(x=>x.id!==id);
+ if(db.settings.currentUser===p.name)db.settings.currentUser=db.family[0]?.name||"";
+ addActivity("👤",`hat das Profil „${p.name}“ entfernt.`,"family",id);
+ save();render();
+}
+function removeDemoPeople(){
+ if(!requireParent())return;
+ const demo=db.family.filter(p=>["p1","p2","p3","p4"].includes(p.id));
+ if(!demo.length)return alert("Keine Beispielpersonen mehr vorhanden.");
+ if(!confirm(`Die Beispielpersonen ${demo.map(p=>p.name).join(", ")} entfernen?\n\nDeine echten Cloud-Konten bleiben dabei erhalten.`))return;
+ const names=new Set(demo.map(p=>p.name));
+ db.family=db.family.filter(p=>!["p1","p2","p3","p4"].includes(p.id));
+ if(names.has(db.settings.currentUser))db.settings.currentUser=db.family[0]?.name||cloud.displayName||"";
+ addActivity("🧹","hat die Beispielpersonen entfernt.","family","");
+ save();render();
+}
+function importCloudProfiles(){
+ if(!requireParent())return;
+ if(!cloudMembers.length)return alert("Keine Cloud-Mitglieder geladen.");
+ let added=0;
+ for(const m of cloudMembers){
+   const name=m.display_name?.trim();if(!name||db.family.some(p=>p.name.toLowerCase()===name.toLowerCase()))continue;
+   db.family.push({id:"cp-"+m.user_id,name,role:roleLabel(m.role),photo:"",tone:["#b56e52","#6f87a7","#718c70","#b98b56","#9b78a6"][db.family.length%5]});
+   added++;
+ }
+ if(!added)return alert("Alle Cloud-Mitglieder sind bereits als Familienprofile vorhanden.");
+ addActivity("👨‍👩‍👧",`hat ${added} Cloud-Mitglied${added===1?"":"er"} als Profil übernommen.`,"family","");
+ save();render();
+}
 function mealShoppingListName(){return db.shoppingLists.find(l=>l.id===state.shopList)?.name||"Einkauf"}
 function addMealToShopping(id){
  if(!requireGeneralEdit())return;
@@ -1218,6 +1395,7 @@ function render(){
  document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
  restoreModalDraft();
  checkReminders();
+ if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
 }
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;addActivity(s.done?"✅":"↩️",s.done?`hat „${s.name}“ beim Einkauf erledigt.`:`hat „${s.name}“ wieder auf die Einkaufsliste gesetzt.`,"shop",s.id);save();render()}
@@ -1239,8 +1417,8 @@ occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><
 eventEdit:`${(()=>{const e=db.events.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(e.title||"")}"></div><div><label>Datum</label><input id="fDate" type="date" value="${esc(e.date||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(e.time||"18:00")}"></div><div><label>Kalender</label><select id="fCalendar"><option value="family" ${e.calendarOwner==="family"?"selected":""}>♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}" ${e.calendarOwner===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace" value="${esc(e.place||"")}"></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"],[10080,"1 Woche vorher"]].map(([v,l])=>`<option value="${v}" ${Number(e.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(e.note||"")}</textarea></div>`})()}`,
 taskEdit:`${(()=>{const t=db.tasks.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Aufgabe</label><input id="fTitle" value="${esc(t.title||"")}"></div><div><label>Fällig</label><input id="fDate" type="date" value="${esc(t.due||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(t.time||"18:00")}"></div><div><label>Zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${t.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low" ${t.prio==="low"?"selected":""}>Normal</option><option value="med" ${t.prio==="med"?"selected":""}>Wichtig</option><option value="high" ${t.prio==="high"?"selected":""}>Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none" ${t.repeat==="none"?"selected":""}>Einmalig</option><option value="daily" ${t.repeat==="daily"?"selected":""}>Täglich</option><option value="weekly" ${t.repeat==="weekly"?"selected":""}>Wöchentlich</option><option value="monthly" ${t.repeat==="monthly"?"selected":""}>Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"]].map(([v,l])=>`<option value="${v}" ${Number(t.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(t.note||"")}</textarea></div>`})()}`,
 shopEdit:`${(()=>{const s=db.shopping.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Artikel</label><input id="fTitle" value="${esc(s.name||"")}"></div><div><label>Liste</label><select id="fList">${db.shoppingLists.map(l=>`<option value="${l.id}" ${s.listId===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div><div><label>Menge</label><input id="fQty" value="${esc(s.qty||"")}"></div><div><label>Kategorie</label><input id="fCat" value="${esc(s.cat||"")}"></div><div><label>Von</label><select id="fPerson">${db.family.map(p=>`<option ${s.by===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(s.note||"")}</textarea></div>`})()}`,
-note:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Samstag Kuchen backen"></div><div><label>Kategorie</label><select id="fCategory"><option>Allgemein</option><option>Familie</option><option>Schule</option><option>Haus</option><option>Wichtig</option><option>Freizeit</option></select></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Text</label><textarea id="fBody" placeholder="Hier darf ruhig mehr stehen …"></textarea></div>`,
-noteEdit:`${(()=>{const n=db.notes.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(n.title||"")}"></div><div><label>Kategorie</label><select id="fCategory">${["Allgemein","Familie","Schule","Haus","Wichtig","Freizeit"].map(c=>`<option ${n.category===c?"selected":""}>${c}</option>`).join("")}</select></div><div><label>Von</label><select id="fPerson">${peopleOptions().replace(`>${esc(n.author)}<`,` selected>${esc(n.author)}<`)}</select></div><div class="full"><label>Text</label><textarea id="fBody">${esc(n.body||n.text||"")}</textarea></div>`})()}`,
+note:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Samstag Kuchen backen"></div><div><label>Kategorie</label><select id="fCategory"><option>Allgemein</option><option>Familie</option><option>Schule</option><option>Haus</option><option>Wichtig</option><option>Freizeit</option></select></div><div><label>Von</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Text</label><textarea id="fBody" placeholder="Hier darf ruhig mehr stehen …"></textarea></div><div class="full media-picker"><label>📷 Bilder / Anhänge</label><input id="fAttachments" type="file" accept="image/*,application/pdf" multiple><div class="media-help">Bis zu 4 Dateien. Bilder werden automatisch verkleinert; PDFs maximal 5 MB.</div></div>`,
+noteEdit:`${(()=>{const n=db.notes.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(n.title||"")}"></div><div><label>Kategorie</label><select id="fCategory">${["Allgemein","Familie","Schule","Haus","Wichtig","Freizeit"].map(c=>`<option ${n.category===c?"selected":""}>${c}</option>`).join("")}</select></div><div><label>Von</label><select id="fPerson">${peopleOptions().replace(`>${esc(n.author)}<`,` selected>${esc(n.author)}<`)}</select></div><div class="full"><label>Text</label><textarea id="fBody">${esc(n.body||n.text||"")}</textarea></div><div class="full media-picker"><label>📎 Weitere Bilder / Anhänge</label><input id="fAttachments" type="file" accept="image/*,application/pdf" multiple><div class="media-help">Vorhandene Anhänge bleiben erhalten. Entfernen kannst du sie in der Detailansicht.</div></div>`})()}`,
 person:`<div><label>Name</label><input id="fTitle"></div><div><label>Rolle</label><select id="fRole"><option>Elternteil</option><option>Kind</option><option>Gast</option></select></div>`,
 meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><div><label>Gericht</label><input id="fTitle"></div><div class="full"><label>Zutaten</label><textarea id="fIngredients" placeholder="z. B. Nudeln, Tomaten, Parmesan&#10;Mit Komma oder neuer Zeile trennen"></textarea></div>`,
 inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeholder="Was möchtest du später einsortieren?"></textarea></div>`,
@@ -1249,9 +1427,9 @@ asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeh
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`
 }[t];const editing=t.endsWith("Edit");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
-if(t==="note"){const body=val("fBody");db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{}});}
-if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}
+async function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
+if(t==="note"){const body=val("fBody");let attachments=[];const files=document.getElementById("fAttachments")?.files;if(files?.length){try{attachments=await uploadNoteFiles(id,files)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments});}
+if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){const files=document.getElementById("fAttachments")?.files;if(files?.length){try{const added=await uploadNoteFiles(n.id,files);n.attachments=[...(n.attachments||[]),...added].slice(0,8)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}
 if(t==="eventEdit"){const e=db.events.find(x=>x.id===state.modal.editId);if(e){const owner=val("fCalendar")||"family";e.title=title;e.date=val("fDate");e.time=val("fTime");e.calendarOwner=owner;e.person=calendarName(owner)==="Familie"?"Alle":calendarName(owner);e.place=val("fPlace");e.remindMinutes=Number(val("fReminder")||0);e.note=val("fNote");}}
 if(t==="taskEdit"){const x=db.tasks.find(x=>x.id===state.modal.editId);if(x){x.title=title;x.due=val("fDate");x.time=val("fTime");x.who=val("fPerson");x.prio=val("fPrio");x.repeat=val("fRepeat");x.remindMinutes=Number(val("fReminder")||0);x.note=val("fNote");}}
 if(t==="shopEdit"){const s=db.shopping.find(x=>x.id===state.modal.editId);if(s){s.name=title;s.listId=val("fList");s.qty=val("fQty");s.cat=val("fCat")||"Sonstiges";s.by=val("fPerson");s.note=val("fNote");}}
