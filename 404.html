@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v5.2</title>
+<title>FamilienHub v5.3</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -176,7 +176,13 @@ async function cloudSignIn(){
     const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
     const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.msg||"Anmeldung fehlgeschlagen");
     cloud.accessToken=d.access_token;cloud.refreshToken=d.refresh_token||"";cloud.userId=d.user?.id||"";cloud.email=email;cloud.enabled=true;saveCloud();
-    await loadCloudMembership();if(cloud.familyId)await initializeRecordSync();startCloudPolling();render();
+    await discoverMyFamily();
+    if(cloud.familyId){
+      await loadCloudMembership();
+      await initializeRecordSync();
+      startCloudPolling();
+    }
+    render();
   }catch(e){alert(e.message)}
 }
 async function cloudSignOut(){
@@ -217,6 +223,49 @@ async function loadCloudMembership(){
     setCloudStatus("Mitglieder konnten nicht geladen werden: "+e.message,false);
   }
 }
+async function discoverMyFamily(){
+  if(!cloud.accessToken)return false;
+  try{
+    const rows=await api("/rest/v1/rpc/get_my_families",{
+      method:"POST",
+      body:JSON.stringify({})
+    })||[];
+
+    if(!rows.length){
+      cloud.familyId="";
+      cloud.familyName="";
+      cloud.inviteCode="";
+      saveCloud();
+      return false;
+    }
+
+    // v5.3 nimmt vorerst die erste gefundene Familie.
+    // Später können wir hier einen Familien-Wechsler ergänzen.
+    const f=rows[0];
+    cloud.familyId=f.family_id;
+    cloud.familyName=f.family_name;
+    cloud.inviteCode=f.invite_code;
+    cloud.displayName=f.display_name;
+    cloud.enabled=true;
+    saveCloud();
+    return true;
+  }catch(e){
+    console.warn("Familie automatisch finden:",e);
+    setCloudStatus("Familie konnte nicht automatisch geladen werden: "+e.message,false);
+    return false;
+  }
+}
+
+async function bootstrapCloud(){
+  if(!cloud.accessToken)return;
+  if(!cloud.familyId)await discoverMyFamily();
+  if(cloud.familyId){
+    await loadCloudMembership();
+    await initializeRecordSync();
+    startCloudPolling();
+  }
+}
+
 
 function cleanSyncItem(collection,item){
   const c=structuredClone(item);delete c._cloudUpdatedAt;
@@ -349,7 +398,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v5.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v5.3</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}</div>${state.modal?modalHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;render()}
 function taskRow(t){return `<div class="row"><button class="check ${t.done?"done":""}" onclick="toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div></div>${avatar(t.who,true)}</div>`}
@@ -518,7 +567,7 @@ if("serviceWorker" in navigator){
 }
 
 window.state=state;
-if(cloud.enabled&&cloud.familyId&&cloud.accessToken){loadCloudMembership().then(()=>initializeRecordSync()).then(()=>startCloudPolling())}
+if(cloud.enabled&&cloud.accessToken){bootstrapCloud()}
 render();
 </script>
 </body>
