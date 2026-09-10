@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v8.1</title>
+<title>FamilienHub v8.1.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -397,11 +397,89 @@ function authHeaders(extra={}){
   const token=cloud.accessToken||cloud.anonKey;
   return {apikey:cloud.anonKey,Authorization:"Bearer "+token,"Content-Type":"application/json",...extra};
 }
+
+let sessionRefreshPromise=null;
+
+function jwtExpMs(token){
+  try{
+    const p=token.split(".")[1];
+    if(!p)return 0;
+    const b64=p.replace(/-/g,"+").replace(/_/g,"/");
+    const json=JSON.parse(atob(b64.padEnd(Math.ceil(b64.length/4)*4,"=")));
+    return Number(json.exp||0)*1000;
+  }catch{return 0}
+}
+
+function clearExpiredSession(){
+  cloud.accessToken="";
+  cloud.refreshToken="";
+  cloud.userId="";
+  cloud.enabled=false;
+  saveCloud();
+}
+
+async function refreshCloudSession(){
+  if(sessionRefreshPromise)return sessionRefreshPromise;
+  sessionRefreshPromise=(async()=>{
+    if(!cloud.url||!cloud.anonKey)throw new Error("Supabase-Verbindung fehlt.");
+    if(!cloud.refreshToken){
+      clearExpiredSession();
+      throw new Error("Sitzung abgelaufen – bitte einmal neu anmelden.");
+    }
+    const r=await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=refresh_token",{
+      method:"POST",
+      headers:{apikey:cloud.anonKey,"Content-Type":"application/json"},
+      body:JSON.stringify({refresh_token:cloud.refreshToken})
+    });
+    const text=await r.text();
+    let d={};try{d=text?JSON.parse(text):{}}catch{}
+    if(!r.ok||!d.access_token){
+      clearExpiredSession();
+      throw new Error((d&&((d.error_description)||(d.msg)||(d.message)))||"Sitzung abgelaufen – bitte neu anmelden.");
+    }
+    cloud.accessToken=d.access_token;
+    cloud.refreshToken=d.refresh_token||cloud.refreshToken;
+    cloud.userId=d.user?.id||cloud.userId;
+    cloud.enabled=true;
+    saveCloud();
+    return true;
+  })();
+  try{return await sessionRefreshPromise}
+  finally{sessionRefreshPromise=null}
+}
+
+async function ensureFreshSession(force=false){
+  if(!cloud.accessToken)return false;
+  const exp=jwtExpMs(cloud.accessToken);
+  // Supabase access tokens are short-lived. Renew about one minute before expiry.
+  if(force||(exp&&exp-Date.now()<60000))await refreshCloudSession();
+  return !!cloud.accessToken;
+}
+
 async function api(path,opts={}){
   if(!cloud.url) throw new Error("Supabase-URL fehlt.");
-  const r=await fetch(cloud.url.replace(/\/$/,"")+path,{...opts,headers:authHeaders(opts.headers||{})});
-  const text=await r.text();
+  if(cloud.accessToken)await ensureFreshSession(false);
+
+  const doFetch=()=>fetch(cloud.url.replace(/\/$/,"")+path,{
+    ...opts,
+    headers:authHeaders(opts.headers||{})
+  });
+
+  let r=await doFetch();
+  let text=await r.text();
   let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
+
+  // Token may have expired between checks or the server may reject it.
+  if(r.status===401&&cloud.refreshToken){
+    const msg=((data&&((data.msg)||(data.message)||(data.error_description)))||"").toLowerCase();
+    if(msg.includes("jwt")||msg.includes("expired")||msg.includes("token")){
+      await ensureFreshSession(true);
+      r=await doFetch();
+      text=await r.text();
+      try{data=text?JSON.parse(text):null}catch{data=text}
+    }
+  }
+
   if(!r.ok)throw new Error((data&&data.msg)||(data&&data.message)||(data&&data.error_description)||("HTTP "+r.status));
   return data;
 }
@@ -449,6 +527,7 @@ async function uploadNoteFiles(noteId,files){
   if(!list.length)return [];
   if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)
     throw new Error("Bilder/Anhänge benötigen die Familien-Synchronisierung mit Supabase.");
+  await ensureFreshSession(false);
   const uploaded=[];
   for(const original of list){
     const p=await prepareMediaFile(original);
@@ -470,6 +549,7 @@ async function fetchAttachmentBlob(att){
   const key=att.path;
   if(mediaObjectUrls.has(key))return mediaObjectUrls.get(key);
   if(!cloud.accessToken)throw new Error("Bitte anmelden, um den Anhang zu öffnen.");
+  await ensureFreshSession(false);
   const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/authenticated/"+MEDIA_BUCKET+"/"+att.path.split("/").map(encodeURIComponent).join("/");
   const r=await fetch(url,{headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
   if(!r.ok){let d={};try{d=await r.json()}catch{};throw new Error(d.message||`Anhang konnte nicht geladen werden (${r.status})`)}
@@ -508,6 +588,7 @@ async function openNoteAttachment(noteId,attId){
 }
 async function deleteStorageObject(path){
   if(!cloud.enabled||!cloud.accessToken||!path)return;
+  await ensureFreshSession(false);
   const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+MEDIA_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
   const r=await fetch(url,{method:"DELETE",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
   if(!r.ok&&r.status!==404){let d={};try{d=await r.json()}catch{};throw new Error(d.message||"Datei konnte nicht entfernt werden.")}
@@ -636,6 +717,8 @@ async function discoverMyFamily(){
 
 async function bootstrapCloud(){
   if(!cloud.accessToken)return;
+  try{await ensureFreshSession(false)}
+  catch(e){setCloudStatus(e.message,false);render();return}
   if(!cloud.familyId)await discoverMyFamily();
   if(cloud.familyId){
     await loadCloudMembership();
@@ -708,7 +791,11 @@ async function recordPullInternal(){
 async function cloudSyncCycle(silent=false){
   if(syncBusy||!cloud.enabled||!cloud.familyId||!cloud.accessToken)return;syncBusy=true;
   try{await recordPushInternal();await recordPullInternal();cloud.lastSync=new Date().toISOString();saveCloud();setCloudStatus("Synchronisiert · Einzel-Einträge",true);if(!silent)render()}
-  catch(e){setCloudStatus("Sync-Fehler: "+e.message,false);if(!silent)alert("Synchronisierung fehlgeschlagen: "+e.message)}
+  catch(e){
+    const expired=/sitzung abgelaufen|jwt expired|refresh token|invalid refresh/i.test(e.message||"");
+    setCloudStatus((expired?"Anmeldung erforderlich: ":"Sync-Fehler: ")+e.message,false);
+    if(!silent)alert((expired?"Bitte einmal neu anmelden: ":"Synchronisierung fehlgeschlagen: ")+e.message);
+  }
   finally{syncBusy=false}
 }
 async function cloudPush(){return cloudSyncCycle(false)}
@@ -776,7 +863,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.1</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.1.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;render()}
 function taskRow(t){return `<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`}
@@ -1493,6 +1580,11 @@ if("serviceWorker" in navigator){
 window.state=state;
 const recoveryDetected=detectPasswordRecovery();
 if(!recoveryDetected&&cloud.enabled&&cloud.accessToken){bootstrapCloud()}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"&&cloud.enabled&&cloud.accessToken){
+    ensureFreshSession(false).then(()=>cloud.familyId&&cloudSyncCycle(true)).catch(e=>setCloudStatus(e.message,false));
+  }
+});
 render();
 </script>
 </body>
