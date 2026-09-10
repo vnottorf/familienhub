@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v10.1</title>
+<title>FamilienHub v10.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -208,6 +208,29 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .stale-status{opacity:.58}
 .plan-chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;background:#f0e6dc;padding:5px 8px;font-size:10px;font-weight:800}
 @media(max-width:620px){.load-grid{grid-template-columns:1fr}}
+.capture-bar{display:flex;gap:8px;align-items:center;background:#fffdf9;border:1px solid var(--line);border-radius:18px;padding:9px 10px;margin:10px 0 14px;box-shadow:0 8px 24px #0000000a}
+.capture-bar input{border:0;background:transparent;outline:0;min-width:0;padding:7px 4px}
+.capture-bar button{white-space:nowrap}
+.cockpit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.cockpit-person{background:#fffdf9;border:1px solid var(--line);border-radius:18px;padding:13px}
+.cockpit-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.cockpit-kpi{background:#f6eee7;border-radius:11px;padding:8px 5px;text-align:center}
+.cockpit-kpi b{display:block;font-size:16px}
+.cockpit-kpi span{font-size:9px;color:var(--muted)}
+.cockpit-next{margin-top:9px;padding-top:9px;border-top:1px solid #eee4db}
+.reminder-now{border-left:4px solid #c57b5f}
+.reminder-later{border-left:4px solid #8a9a81}
+.reminder-quick{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.reminder-quick button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 8px;font-size:10px;color:var(--ink)}
+.doc-state{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:800}
+.doc-state.ok{background:#e8f0e6;color:#587158}
+.doc-state.soon{background:#f8ecd9;color:#946c34}
+.doc-state.expired{background:#f5dfdc;color:#a04e45}
+.school-links{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.school-links button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 9px;color:var(--ink);font-size:11px}
+.inline-hint{font-size:10px;color:var(--muted);margin:-8px 0 12px 7px}
+@media(max-width:620px){.cockpit-grid{grid-template-columns:1fr}.capture-bar{align-items:stretch}.capture-bar button{padding-left:10px;padding-right:10px}}
+
 
 
 .undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:90;width:min(520px,calc(100% - 28px));background:#3d342f;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 16px 40px #0004}
@@ -1048,7 +1071,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.1</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.2</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -1102,7 +1125,7 @@ function updateSearchResults(){
 }
 function searchResultsHTML(q){
   const results=globalSearchResults(q);
-  if(String(q||"").trim().length<2)return `<div class="notice">Mindestens 2 Zeichen eingeben. Durchsucht Termine, Aufgaben, Einkauf, Pinnwand, Essensplan, Anlässe, Inbox und Wünsche.</div>`;
+  if(String(q||"").trim().length<2)return `<div class="notice">Mindestens 2 Zeichen eingeben. Durchsucht Termine, Aufgaben, Einkauf, Pinnwand, Essensplan, Schule, Routinen, Reisen, Dokumente, Anlässe, Inbox und Wünsche.</div>`;
   return results.length?results.map(r=>`<div class="search-result" onclick="openSearchResult('${r.kind}','${r.id}')"><div class="search-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.meta)}</div></div><span class="chev">›</span></div>`).join(""):`<div class="notice">Nichts gefunden.</div>`;
 }
 function openSearchResult(kind,id){
@@ -1355,6 +1378,8 @@ function sortedMeals(){
 
 const DASHBOARD_META={
   smart:["✨","Was jetzt wichtig ist"],
+  cockpit:["👨‍👩‍👧‍👦","Familien-Cockpit"],
+  remindersNow:["🔔","Erinnerungen jetzt"],
   prep:["🌙","Morgen vorbereiten"],
   myday:["👤","Mein Tag"],
   status:["📍","Familienstatus"],
@@ -1547,6 +1572,8 @@ function expiringDocuments(days=90){
 function smartSuggestions(){
   const out=[];
   if(cloud.enabled&&cloud.familyId&&cloud.lastSync&&Date.now()-new Date(cloud.lastSync).getTime()>5*60000)out.push({icon:"☁️",title:"Synchronisierung ist länger her",text:`Letzter Sync ${new Date(cloud.lastSync).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}`,action:`go('cloud')`,button:"Sync prüfen"});
+  const dueNow=dueReminderItems().filter(r=>effectiveReminderTrigger(r)<=new Date()).length;
+  if(dueNow)out.push({icon:"🔔",title:`${dueNow} Erinnerung${dueNow===1?" ist":"en sind"} jetzt fällig`,text:"Direkt öffnen, erledigen oder später erinnern lassen.",action:`go('reminders')`,button:"Erinnerungen"});
   const tomorrowCount=tomorrowPrepCount();
   if(tomorrowCount>=4)out.push({icon:"🌙",title:`Morgen stehen ${tomorrowCount} Punkte an`,text:"Ein kurzer Abend-Check kann morgen entspannter machen.",action:`go('prep')`,button:"Morgen vorbereiten"});
   const plannedMeals=sortedMeals().filter(m=>{const o=mealDayOffset(m.day);return o>=0&&o<=6}).length;
@@ -1725,11 +1752,41 @@ function routinesView(){
   <section class="card s12">${sortedRoutines().map(r=>swipeWrap("routine",r.id,`<div class="row ${daysUntil(r.nextDate)<=0?"routine-due":"routine-ok"}"><div class="grow"><div class="title">${esc(r.title)}${daysUntil(r.nextDate)<0?` <span class="overdue-badge">überfällig</span>`:""}</div><div class="meta">${esc(r.who)} · ${fmtDate(r.nextDate)} · ${esc(routineLabel(r))}${r.note?` · ${esc(r.note)}`:""}</div></div><div class="edit-actions"><button class="primary" onclick="event.stopPropagation();completeRoutine('${r.id}')">Erledigt</button><button class="ghost" onclick="event.stopPropagation();editModule('routine','${r.id}')">Bearbeiten</button><button class="ghost" onclick="event.stopPropagation();setRoutineActive('${r.id}',false)">Pause</button></div></div>`)).join("")||'<div class="notice">Noch keine Routinen angelegt.</div>'}</section>
   ${db.routines.some(r=>r.active===false)?`<section class="card s12" style="margin-top:12px"><h3>Pausiert</h3>${db.routines.filter(r=>r.active===false).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.who)}</div></div><button class="ghost" onclick="editModule('routine','${r.id}')">Bearbeiten</button><button class="ghost" onclick="setRoutineActive('${r.id}',true)">Aktivieren</button></div>`).join("")}</section>`:""}`;
 }
+
+function schoolToTask(id){
+  if(!requireGeneralEdit())return;
+  const s=db.school.find(x=>x.id===id);if(!s)return;
+  const exists=db.tasks.some(t=>!t.done&&t.title.trim().toLowerCase()===s.title.trim().toLowerCase()&&t.who===s.child);
+  if(exists)return alert("Dieser Schuleintrag ist bereits als offene Aufgabe vorhanden.");
+  const tid="t"+Date.now();
+  db.tasks.push({id:tid,title:s.title,due:s.date||todayISO(),time:s.time||"18:00",who:s.child||currentDisplayName(),prio:s.kind==="Klassenarbeit"?"high":"med",repeat:"none",remindMinutes:1440,note:[s.kind,s.subject,s.note,"Aus Schule"].filter(Boolean).join(" · "),done:false,completedAt:null,comments:[]});
+  addActivity("🎒",`hat „${s.title}“ als Aufgabe übernommen.`,"task",tid);
+  save();render();
+}
+function schoolToEvent(id){
+  if(!requireGeneralEdit())return;
+  const s=db.school.find(x=>x.id===id);if(!s)return;
+  const owner=person(s.child)?.id||"family";
+  const exists=db.events.some(e=>e.date===s.date&&e.title.trim().toLowerCase()===s.title.trim().toLowerCase()&&e.calendarOwner===owner);
+  if(exists)return alert("Dieser Schuleintrag steht bereits im Kalender.");
+  const eid="e"+Date.now();
+  db.events.push({id:eid,title:s.title,date:s.date,time:s.time||"18:00",calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:"",remindMinutes:s.kind==="Klassenarbeit"?1440:60,note:[s.kind,s.subject,s.note,"Aus Schule"].filter(Boolean).join(" · "),comments:[]});
+  addActivity("📅",`hat „${s.title}“ aus Schule in den Kalender übernommen.`,"event",eid);
+  save();render();
+}
+function schoolLinkState(s){
+  const owner=person(s.child)?.id||"family";
+  return {
+    task:db.tasks.some(t=>!t.done&&t.title.trim().toLowerCase()===s.title.trim().toLowerCase()&&t.who===s.child),
+    event:db.events.some(e=>e.date===s.date&&e.title.trim().toLowerCase()===s.title.trim().toLowerCase()&&e.calendarOwner===owner)
+  };
+}
+
 function schoolView(){
   const upcoming=schoolSorted();
   return `<div class="section-title"><div><h2>Schule</h2><div class="small">Hausaufgaben, Klassenarbeiten, Material, Elternabende und Ausflüge.</div></div><button class="primary" onclick="openModal('school')">+ Schule</button></div>
   <div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div>
-  <section class="card s12">${upcoming.map(s=>swipeWrap("school",s.id,`<div class="row"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleSchool('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title ${!s.done&&s.date<todayISO()?"overdue":""}">${esc(s.title)}</div><div class="meta"><span class="school-kind">${esc(s.kind)}</span> ${fmtDate(s.date)} ${esc(s.time||"")} · ${esc(s.child)}${s.subject?` · ${esc(s.subject)}`:""}${s.note?` · ${esc(s.note)}`:""}</div></div><div class="edit-actions"><button class="ghost" onclick="event.stopPropagation();schoolToTask('${s.id}')">→ Aufgabe</button><button class="ghost" onclick="event.stopPropagation();editModule('school','${s.id}')">Bearbeiten</button></div></div>`)).join("")||'<div class="notice">Noch keine Schulsachen eingetragen.</div>'}</section>`;
+  <section class="card s12">${upcoming.map(s=>{const linked=schoolLinkState(s);return swipeWrap("school",s.id,`<div class="row"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleSchool('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title ${!s.done&&s.date<todayISO()?"overdue":""}">${esc(s.title)}</div><div class="meta"><span class="school-kind">${esc(s.kind)}</span> ${fmtDate(s.date)} ${esc(s.time||"")} · ${esc(s.child)}${s.subject?` · ${esc(s.subject)}`:""}${s.note?` · ${esc(s.note)}`:""}</div><div class="school-links">${linked.task?'<span class="plan-chip">✓ als Aufgabe</span>':`<button onclick="event.stopPropagation();schoolToTask('${s.id}')">✓ → Aufgabe</button>`}${linked.event?'<span class="plan-chip">📅 im Kalender</span>':`<button onclick="event.stopPropagation();schoolToEvent('${s.id}')">📅 → Kalender</button>`}</div></div><button class="ghost" onclick="event.stopPropagation();editModule('school','${s.id}')">Bearbeiten</button></div>`)}).join("")||'<div class="notice">Noch keine Schulsachen eingetragen.</div>'}</section>`;
 }
 function pantryView(){
   const order={empty:0,low:1,ok:2,full:3};
@@ -1788,6 +1845,17 @@ function previewSmartCapture(){
   if(!box)return;
   box.innerHTML=text.trim()?`Vorschlag: <b>${quickKindLabel(p.kind)}</b> · ${esc(p.title)}${["task","event","school"].includes(p.kind)?` · ${fmtDate(p.date)} ${esc(p.time)}`:""}${p.who?` · ${esc(p.who)}`:""}`:"Text eingeben – FamilienHub schlägt dann eine passende Ablage vor.";
 }
+
+function inlineCaptureHTML(){
+  return `<div class="capture-bar"><span>⚡</span><input id="inlineCapture" placeholder="Einfach tippen: „Milch kaufen“ oder „Zahnarzt Freitag 15:30“" onkeydown="if(event.key==='Enter'){event.preventDefault();inlineSmartCapture()}"><button class="primary" onclick="inlineSmartCapture()">Eintragen</button></div><div class="inline-hint">FamilienHub erkennt lokal Aufgabe, Termin, Einkauf, Schule oder Routine. Mit @Name kannst du eine Person angeben.</div>`;
+}
+function inlineSmartCapture(){
+  const input=document.getElementById("inlineCapture"),text=input?.value.trim();
+  if(!text)return;
+  const p=parseQuickCapture(text);
+  quickCaptureCreate(p.kind,p.title,p);
+}
+
 function smartQuickCapture(){
   const p=parseQuickCapture(val("fCaptureText"));
   if(!p.title)return alert("Bitte erst etwas eingeben.");
@@ -1849,14 +1917,74 @@ async function deleteDocument(id){
   save();render();
 }
 
+
+function documentState(d){
+  if(!d.expires)return {cls:"ok",label:"ohne Ablauf"};
+  const n=daysUntil(d.expires);
+  if(n<0)return {cls:"expired",label:"abgelaufen"};
+  if(n<=60)return {cls:"soon",label:`läuft in ${n} Tag${n===1?"":"en"} ab`};
+  return {cls:"ok",label:"gültig"};
+}
+function documentRenewalTask(id){
+  if(!requireParent())return;
+  const d=db.documents.find(x=>x.id===id);if(!d||!d.expires)return;
+  const title=`${d.title} erneuern`;
+  if(db.tasks.some(t=>!t.done&&t.title.toLowerCase()===title.toLowerCase()))return alert("Dafür gibt es bereits eine offene Aufgabe.");
+  const dueDate=new Date(d.expires+"T12:00");dueDate.setDate(dueDate.getDate()-30);
+  const rawDue=dueDate.toISOString().slice(0,10),due=rawDue<todayISO()?todayISO():rawDue;
+  const who=db.family.some(p=>p.name===d.owner)?d.owner:currentDisplayName();
+  const tid="t"+Date.now();
+  db.tasks.push({id:tid,title,due,time:"18:00",who,prio:"high",repeat:"none",remindMinutes:1440,note:`Dokument: ${d.category||"Dokument"} · gültig bis ${fmtDate(d.expires)}`,done:false,completedAt:null,comments:[]});
+  addActivity("📂",`hat die Erneuerung von „${d.title}“ als Aufgabe geplant.`,"task",tid);
+  save();render();
+}
+
 function documentsView(){
   const parent=canManageFamily();
   const xs=[...db.documents].sort((a,b)=>String(a.expires||"9999").localeCompare(String(b.expires||"9999")));
+  const expired=xs.filter(d=>d.expires&&daysUntil(d.expires)<0).length,soon=xs.filter(d=>d.expires&&daysUntil(d.expires)>=0&&daysUntil(d.expires)<=60).length;
   return `<div class="section-title"><div><h2>Dokumente</h2><div class="small">Private Familienunterlagen mit Ablaufdatum.</div></div>${parent?`<button class="primary" onclick="openModal('document')">+ Dokument</button>`:""}</div>
-  <section class="card s12">${xs.map(d=>`<div class="doc-row"><div class="doc-icon">${(d.type||"").includes("pdf")?"📄":"🖼️"}</div><div class="grow"><div class="title">${esc(d.title)}</div><div class="meta">${esc(d.category||"Dokument")}${d.owner?` · ${esc(d.owner)}`:""}${d.expires?` · <span class="${daysUntil(d.expires)<=60?"expiring":""}">gültig bis ${fmtDate(d.expires)}</span>`:""}${d.note?` · ${esc(d.note)}`:""}</div></div><button class="ghost" onclick="openDocument('${d.id}')">Öffnen</button>${parent?`<button class="ghost" onclick="editModule('document','${d.id}')">Bearbeiten</button><button class="danger" onclick="deleteDocument('${d.id}')">Löschen</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Dokumente abgelegt.</div>'}</section>
+  ${(expired||soon)?`<div class="notice warning" style="margin-bottom:12px">📂 ${expired?`${expired} abgelaufen`:""}${expired&&soon?" · ":""}${soon?`${soon} läuft bald ab`:""}</div>`:""}
+  <section class="card s12">${xs.map(d=>{const st=documentState(d);return `<div class="doc-row"><div class="doc-icon">${(d.type||"").includes("pdf")?"📄":"🖼️"}</div><div class="grow"><div class="title">${esc(d.title)} <span class="doc-state ${st.cls}">${esc(st.label)}</span></div><div class="meta">${esc(d.category||"Dokument")}${d.owner?` · ${esc(d.owner)}`:""}${d.expires?` · gültig bis ${fmtDate(d.expires)}`:""}${d.note?` · ${esc(d.note)}`:""}</div></div><button class="ghost" onclick="openDocument('${d.id}')">Öffnen</button>${parent&&d.expires?`<button class="ghost" onclick="documentRenewalTask('${d.id}')">✓ Erneuerung</button>`:""}${parent?`<button class="ghost" onclick="editModule('document','${d.id}')">Bearbeiten</button><button class="danger" onclick="deleteDocument('${d.id}')">Löschen</button>`:""}</div>`}).join("")||'<div class="notice">Noch keine Dokumente abgelegt.</div>'}</section>
   ${!parent?`<div class="notice" style="margin-top:12px">Dokumente können nur von Eltern hinzugefügt oder gelöscht werden.</div>`:""}`;
 }
+
+function familyCockpitData(){
+  const today=todayISO(),end=plusDays(6);
+  return db.family.map(p=>{
+    const eventsToday=db.events.filter(e=>e.date===today&&(e.calendarOwner==="family"||e.calendarOwner===p.id));
+    const tasksToday=db.tasks.filter(t=>!t.done&&t.who===p.name&&(t.due===today||isTaskOverdue(t)));
+    const schoolToday=db.school.filter(s=>!s.done&&s.child===p.name&&s.date===today);
+    const routinesToday=db.routines.filter(r=>r.active!==false&&r.who===p.name&&r.nextDate<=today);
+    const weekEvents=db.events.filter(e=>e.date>=today&&e.date<=end&&(e.calendarOwner==="family"||e.calendarOwner===p.id)).length;
+    const weekTasks=db.tasks.filter(t=>!t.done&&t.who===p.name&&t.due>=today&&t.due<=end).length;
+    const weekSchool=db.school.filter(s=>!s.done&&s.child===p.name&&s.date>=today&&s.date<=end).length;
+    const weekRoutines=db.routines.filter(r=>r.active!==false&&r.who===p.name&&r.nextDate>=today&&r.nextDate<=end).length;
+    const nextEvent=[...db.events].filter(e=>e.date>=today&&(e.calendarOwner==="family"||e.calendarOwner===p.id)).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")))[0]||null;
+    const overdue=db.tasks.filter(t=>!t.done&&t.who===p.name&&isTaskOverdue(t)).length;
+    return {p,status:statusFor(p.name),eventsToday,tasksToday,schoolToday,routinesToday,weekEvents,weekTasks,weekSchool,weekRoutines,nextEvent,overdue};
+  });
+}
+function familyCockpitView(){
+  const xs=familyCockpitData();
+  return `<div class="section-title"><div><h2>Familien-Cockpit</h2><div class="small">Heute und die nächsten 7 Tage für alle auf einen Blick.</div></div><button class="ghost" onclick="go('week')">Unsere Woche</button></div>
+  <div class="cockpit-grid">${xs.map(x=>`<div class="cockpit-person"><div class="myday-person">${avatar(x.p.name)}<div class="grow"><div class="title">${esc(x.p.name)}</div><div class="meta">${esc(statusText(x.status))}${x.overdue?` · <span class="overdue">${x.overdue} überfällig</span>`:""}</div></div><button class="ghost" onclick="state.focusPerson='${esc(x.p.name)}';go('myday')">Tag →</button></div><div class="cockpit-kpis"><div class="cockpit-kpi"><b>${x.eventsToday.length}</b><span>Termine heute</span></div><div class="cockpit-kpi"><b>${x.tasksToday.length}</b><span>Aufgaben heute</span></div><div class="cockpit-kpi"><b>${x.schoolToday.length}</b><span>Schule heute</span></div><div class="cockpit-kpi"><b>${x.routinesToday.length}</b><span>Routinen fällig</span></div></div><div class="cockpit-next"><div class="meta">Nächste 7 Tage: 📅 ${x.weekEvents} · ✓ ${x.weekTasks} · 🎒 ${x.weekSchool} · 🔁 ${x.weekRoutines}</div>${x.nextEvent?`<div class="meta" style="margin-top:5px">Nächster Termin: <b>${esc(x.nextEvent.title)}</b> · ${fmtDate(x.nextEvent.date)} ${esc(x.nextEvent.time||"")}</div>`:""}</div></div>`).join("")}</div>
+  <section class="card s12" style="margin-top:12px"><div class="section-head"><h3>✨ Familienhinweise</h3><button class="card-link" onclick="go('reminders')">Erinnerungen →</button></div>${smartSuggestionsHTML(6)}</section>`;
+}
+function dueReminderItems(){
+  const now=new Date(),until=new Date(Date.now()+24*3600000);
+  return reminderItems().filter(r=>!localStorage.getItem(reminderDismissKey(r.key))).map(r=>({...r,effectiveTrigger:effectiveReminderTrigger(r)})).filter(r=>r.effectiveTrigger<=until&&r.due>=new Date(now.getTime()-86400000)).sort((a,b)=>a.effectiveTrigger-b.effectiveTrigger);
+}
+
 function dashboardCard(key,ctx){
+  if(key==="cockpit"){
+    const xs=familyCockpitData();
+    return `<section class="card s7"><div class="section-head"><h3>👨‍👩‍👧‍👦 Familien-Cockpit</h3><button class="card-link" onclick="go('cockpit')">Öffnen →</button></div>${xs.slice(0,4).map(x=>`<div class="row"><div class="grow"><div class="title">${esc(x.p.name)}</div><div class="meta">Heute: 📅 ${x.eventsToday.length} · ✓ ${x.tasksToday.length} · 🎒 ${x.schoolToday.length} · 🔁 ${x.routinesToday.length}${x.overdue?` · <span class="overdue">${x.overdue} überfällig</span>`:""}</div></div>${avatar(x.p.name,true)}</div>`).join("")}</section>`;
+  }
+  if(key==="remindersNow"){
+    const rs=dueReminderItems().slice(0,4);
+    return `<section class="card s5"><div class="section-head"><h3>🔔 Erinnerungen jetzt</h3><button class="card-link" onclick="go('reminders')">Alle →</button></div>${rs.length?rs.map(r=>`<div class="row ${r.effectiveTrigger<=new Date()?"reminder-now":"reminder-later"}"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${reminderDateText(r.effectiveTrigger)}</div></div></div>`).join(""):'<div class="notice success">In den nächsten 24 Stunden keine Erinnerung.</div>'}</section>`;
+  }
   if(key==="smart")return `<section class="card s7"><div class="section-head"><h3>✨ Was jetzt wichtig ist</h3><button class="card-link" onclick="go('week')">Woche →</button></div>${smartSuggestionsHTML(5)}</section>`;
   if(key==="prep"){
     const d=prepTomorrowData(),people=d.people.filter(x=>x.total);
@@ -1939,6 +2067,7 @@ function todayView(){
  const c=dashboardCfg();
  const visible=c.order.filter(k=>!c.hidden.includes(k));
  return `<section class="hero"><div class="section-head"><span class="pill">☀︎ Familienmorgen</span>${canManageFamily()?`<div class="hero-buttons"><button class="hero-edit" onclick="openModal('hero')">✎ Text anpassen</button><button class="hero-edit" onclick="go('dashboard')">⚙ Startseite</button></div>`:""}</div><h2>${esc(c.heroTitle||db.settings.heroTitle)}</h2><div class="muted">${esc(c.heroSubtitle||db.settings.heroSubtitle)} · ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben${overdue?` · <span class="overdue">${overdue} überfällig</span>`:""}</div></section>
+ ${inlineCaptureHTML()}
  <div class="quick-actions">
    <button class="quick-action" onclick="openModal('event')"><b>📅</b>Termin</button>
    <button class="quick-action" onclick="openModal('task')"><b>✓</b>Aufgabe</button>
@@ -2021,7 +2150,7 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["cockpit","👨‍👩‍👧‍👦","Familien-Cockpit"],["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
 
@@ -2073,6 +2202,20 @@ function itemCommentsHTML(type,x){
   return `<h3 style="margin-top:20px">💬 Kommentare</h3>${comments.map(c=>`<div class="comment"><div class="comment-head">${avatar(c.author,true)}<div class="grow"><b>${esc(c.author)}</b><div class="meta">${new Date(c.created).toLocaleString("de-DE")}</div></div></div><div class="comment-body">${esc(c.text)}</div></div>`).join("")||'<div class="notice">Noch keine Kommentare.</div>'}${canEditGeneral()?`<div class="comment-compose"><input id="itemComment" placeholder="Kommentar schreiben …" onkeydown="if(event.key==='Enter'){event.preventDefault();addItemComment('${type}','${x.id}')}"><button class="primary" onclick="addItemComment('${type}','${x.id}')">Senden</button></div>`:""}`;
 }
 
+
+function eventFollowUpTask(id){
+  if(!requireGeneralEdit())return;
+  const e=db.events.find(x=>x.id===id);if(!e)return;
+  const who=db.family.find(p=>p.id===e.calendarOwner)?.name||currentDisplayName();
+  const d=new Date(e.date+"T12:00");d.setDate(d.getDate()+1);
+  const title=prompt("Welche Aufgabe soll aus dem Termin entstehen?",`${e.title} nachbereiten`);
+  if(!title?.trim())return;
+  const tid="t"+Date.now();
+  db.tasks.push({id:tid,title:title.trim(),due:d.toISOString().slice(0,10),time:"18:00",who,prio:"med",repeat:"none",remindMinutes:60,note:`Aus Termin: ${e.title}`,done:false,completedAt:null,comments:[]});
+  addActivity("✓",`hat aus dem Termin „${e.title}“ eine Folgeaufgabe erstellt.`,"task",tid);
+  save();render();
+}
+
 function itemDetailHTML(){
  const x=detailItem();if(!x)return "";
  const type=state.itemDetail.type;
@@ -2089,7 +2232,7 @@ function itemDetailHTML(){
     ${x.place?`<div class="detail-body"><b>Ort:</b> ${esc(x.place)}</div>`:""}
     ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
     ${itemCommentsHTML("event",x)}
-    ${canEditGeneral()?`<div class="actions"><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
+    ${canEditGeneral()?`<div class="actions"><button class="primary" onclick="eventFollowUpTask('${x.id}')">✓ Folgeaufgabe</button><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
    </div></div>`;
  }
  if(type==="task"){
@@ -2315,45 +2458,45 @@ function reminderItems(){
     const mins=Number(e.remindMinutes||0);if(mins<=0)continue;
     const due=new Date(`${e.date}T${e.time||"09:00"}`);
     const trigger=new Date(due.getTime()-mins*60000);
-    items.push({key:`event-${e.id}-${trigger.getTime()}`,icon:"📅",type:"Termin",title:e.title,meta:`${calendarName(e.calendarOwner)} · ${reminderText(mins)}`,trigger,due});
+    items.push({key:`event-${e.id}-${trigger.getTime()}`,icon:"📅",type:"Termin",title:e.title,meta:`${calendarName(e.calendarOwner)} · ${reminderText(mins)}`,trigger,due,refType:"event",refId:e.id});
   }
   for(const t of db.tasks.filter(x=>!x.done)){
     const mins=Number(t.remindMinutes||0);if(mins<=0)continue;
     const due=new Date(`${t.due}T${t.time||"18:00"}`);
     const trigger=new Date(due.getTime()-mins*60000);
-    items.push({key:`task-${t.id}-${trigger.getTime()}`,icon:"✓",type:"Aufgabe",title:t.title,meta:`${t.who} · ${reminderText(mins)}`,trigger,due});
+    items.push({key:`task-${t.id}-${trigger.getTime()}`,icon:"✓",type:"Aufgabe",title:t.title,meta:`${t.who} · ${reminderText(mins)}`,trigger,due,refType:"task",refId:t.id});
   }
   for(const o of db.occasions){
     const days=Number(o.remind||0);if(days<=0)continue;
     const due=new Date(`${o.date}T09:00`);
     const trigger=new Date(due.getTime()-days*86400000);
-    items.push({key:`occasion-${o.id}-${trigger.getTime()}`,icon:"🎉",type:o.kind||"Anlass",title:o.title,meta:`${days} Tage vorher`,trigger,due});
+    items.push({key:`occasion-${o.id}-${trigger.getTime()}`,icon:"🎉",type:o.kind||"Anlass",title:o.title,meta:`${days} Tage vorher`,trigger,due,refType:"occasion",refId:o.id});
   }
   for(const m of db.houseMaintenance){
     const days=Number(m.reminderDays??30);if(days<=0)continue;
     const due=new Date(`${m.nextDate}T09:00`);
     const trigger=new Date(due.getTime()-days*86400000);
-    items.push({key:`maint-${m.id}-${trigger.getTime()}`,icon:"🛠️",type:"Wartung",title:m.title,meta:`${m.area} · ${days} Tage vorher`,trigger,due});
+    items.push({key:`maint-${m.id}-${trigger.getTime()}`,icon:"🛠️",type:"Wartung",title:m.title,meta:`${m.area} · ${days} Tage vorher`,trigger,due,refType:"maintenance",refId:m.id});
   }
   for(const r of db.routines.filter(x=>x.active!==false)){
     if(!r.nextDate)continue;
     const due=new Date(`${r.nextDate}T${r.time||"18:00"}`),trigger=new Date(due.getTime()-60*60000);
-    items.push({key:`routine-${r.id}-${trigger.getTime()}`,icon:"🔁",type:"Routine",title:r.title,meta:`${r.who} · 1 Std vorher`,trigger,due});
+    items.push({key:`routine-${r.id}-${trigger.getTime()}`,icon:"🔁",type:"Routine",title:r.title,meta:`${r.who} · 1 Std vorher`,trigger,due,refType:"routine",refId:r.id});
   }
   for(const s of db.school.filter(x=>!x.done)){
     if(!s.date)continue;
     const due=new Date(`${s.date}T${s.time||"18:00"}`),trigger=new Date(due.getTime()-1440*60000);
-    items.push({key:`school-${s.id}-${trigger.getTime()}`,icon:"🎒",type:"Schule",title:s.title,meta:`${s.child} · 1 Tag vorher`,trigger,due});
+    items.push({key:`school-${s.id}-${trigger.getTime()}`,icon:"🎒",type:"Schule",title:s.title,meta:`${s.child} · 1 Tag vorher`,trigger,due,refType:"school",refId:s.id});
   }
   for(const d of db.documents){
     if(!d.expires)continue;
     const due=new Date(`${d.expires}T09:00`),trigger=new Date(due.getTime()-30*86400000);
-    items.push({key:`doc-${d.id}-${trigger.getTime()}`,icon:"📂",type:"Dokument",title:d.title,meta:"läuft in 30 Tagen ab",trigger,due});
+    items.push({key:`doc-${d.id}-${trigger.getTime()}`,icon:"📂",type:"Dokument",title:d.title,meta:"läuft in 30 Tagen ab",trigger,due,refType:"document",refId:d.id});
   }
   for(const t of db.trips){
     if(!t.startDate)continue;
     const due=new Date(`${t.startDate}T09:00`),trigger=new Date(due.getTime()-7*86400000);
-    items.push({key:`trip-${t.id}-${trigger.getTime()}`,icon:"🧳",type:"Reise",title:t.title,meta:"Start in 1 Woche",trigger,due});
+    items.push({key:`trip-${t.id}-${trigger.getTime()}`,icon:"🧳",type:"Reise",title:t.title,meta:"Start in 1 Woche",trigger,due,refType:"trip",refId:t.id});
   }
   return items.filter(x=>!Number.isNaN(x.trigger.getTime())).sort((a,b)=>a.trigger-b.trigger);
 }
@@ -2381,6 +2524,29 @@ function dismissReminder(key){
   localStorage.removeItem(reminderSnoozeKey(key));
   render();
 }
+
+function reminderByKey(key){return reminderItems().find(r=>r.key===key)}
+function openReminderItem(key){
+  const r=reminderByKey(key);if(!r)return;
+  if(["event","task"].includes(r.refType)){openItemDetail(r.refType,r.refId);return}
+  if(r.refType==="document"){go("documents");return}
+  if(r.refType==="school"){go("school");return}
+  if(r.refType==="routine"){go("routines");return}
+  if(r.refType==="trip"){go("trips");return}
+  if(r.refType==="occasion"){go("occasions");return}
+  if(r.refType==="maintenance"){go("house");return}
+}
+function completeReminderItem(key){
+  const r=reminderByKey(key);if(!r)return;
+  if(r.refType==="task"){toggleTask(r.refId);return}
+  if(r.refType==="routine"){completeRoutine(r.refId);return}
+  if(r.refType==="school"){toggleSchool(r.refId);return}
+}
+function reminderQuickHTML(r){
+  const completable=["task","routine","school"].includes(r.refType);
+  return `<div class="reminder-quick"><button onclick="openReminderItem('${r.key}')">Öffnen</button>${completable?`<button onclick="completeReminderItem('${r.key}')">✓ Erledigt</button>`:""}</div>`;
+}
+
 function remindersView(){
   const now=new Date();
   const upcoming=reminderItems()
@@ -2399,8 +2565,8 @@ function remindersView(){
       <div class="meta" style="margin-top:10px">Erinnerungen lassen sich jetzt verschieben oder für den einzelnen Eintrag ausblenden.</div>
     </section>
     <section class="card s8">
-      <h3>⏰ Kommende Erinnerungen</h3>
-      ${upcoming.length?upcoming.map(r=>`<div class="row"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.type)} · ${esc(r.meta)}${r.effectiveTrigger.getTime()!==r.trigger.getTime()?` · <b>verschoben</b>`:""}</div><div class="reminder-actions"><button onclick="snoozeReminder('${r.key}',15)">+15 Min</button><button onclick="snoozeReminder('${r.key}',60)">+1 Std</button><button onclick="snoozeReminderTomorrow('${r.key}')">Morgen 8:00</button><button onclick="dismissReminder('${r.key}')">Ausblenden</button></div></div><div class="reminder-time">${reminderDateText(r.effectiveTrigger)}</div></div>`).join(""):`<div class="notice success">Keine kommenden Erinnerungen.</div>`}
+      <div class="section-head"><h3>⏰ Kommende Erinnerungen</h3><span class="pill">${upcoming.filter(r=>r.effectiveTrigger<=now).length} jetzt fällig</span></div>
+      ${upcoming.length?upcoming.map(r=>`<div class="row"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.type)} · ${esc(r.meta)}${r.effectiveTrigger.getTime()!==r.trigger.getTime()?` · <b>verschoben</b>`:""}</div>${reminderQuickHTML(r)}<div class="reminder-actions"><button onclick="snoozeReminder('${r.key}',15)">+15 Min</button><button onclick="snoozeReminder('${r.key}',60)">+1 Std</button><button onclick="snoozeReminderTomorrow('${r.key}')">Morgen 8:00</button><button onclick="dismissReminder('${r.key}')">Ausblenden</button></div></div><div class="reminder-time">${reminderDateText(r.effectiveTrigger)}</div></div>`).join(""):`<div class="notice success">Keine kommenden Erinnerungen.</div>`}
     </section>
   </div>`;
 }
@@ -2518,7 +2684,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.1 ergänzt Morgen-Vorbereitung, Wochenlast, Sammel-Zutaten und schnelle Neuplanung überfälliger Aufgaben.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.2 ergänzt Familien-Cockpit, Schnellzeile, Schule↔Kalender/Aufgaben, Dokument-Erneuerungen und aktivere Erinnerungen.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
@@ -2555,7 +2721,7 @@ function renderCrash(err){
 function render(){
  try{
    captureModalDraft();
-   const m={today:todayView,myday:myDayView,prep:prepView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+   const m={today:todayView,cockpit:familyCockpitView,myday:myDayView,prep:prepView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
    document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
    restoreModalDraft();
    checkReminders();
@@ -2713,6 +2879,8 @@ window.addEventListener("error",e=>{
 window.addEventListener("unhandledrejection",e=>console.warn("FamilienHub async:",e.reason));
 window.state=state;
 createRestorePoint("start",false);
+setInterval(()=>{try{checkReminders()}catch(e){console.warn("Reminder-Intervall:",e)}},60000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){try{checkReminders()}catch(e){}}});
 const recoveryDetected=detectPasswordRecovery();
 if(!recoveryDetected&&cloud.enabled&&cloud.accessToken){bootstrapCloud()}
 document.addEventListener("click",e=>{
