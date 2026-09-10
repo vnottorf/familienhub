@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v8.1.2</title>
+<title>FamilienHub v8.2</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -110,6 +110,14 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .danger-soft{border:1px solid #e1c3bd;background:#fff7f5;color:#a55348;border-radius:12px;padding:8px 10px}
 .uploading{opacity:.65;pointer-events:none}
 @media(max-width:620px){.media-grid{grid-template-columns:1fr}.media-card img{height:220px}}
+.swipe-item{position:relative;overflow:hidden;border-radius:14px}
+.swipe-content{position:relative;z-index:2;background:var(--card);transition:transform .18s ease;touch-action:pan-y}
+.swipe-item.swipe-open .swipe-content{transform:translateX(-92px)}
+.swipe-delete-btn{position:absolute;right:0;top:0;bottom:0;width:92px;border:0;background:#b85f54;color:#fff;font-weight:800;font-size:13px;z-index:1;display:flex;align-items:center;justify-content:center}
+.swipe-delete-btn:active{background:#9f4d45}
+.swipe-hint{font-size:11px;color:var(--muted);margin-top:-4px;margin-bottom:10px}
+.swipe-item .row{border-radius:0}
+
 
 
 
@@ -863,11 +871,118 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.1.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;render()}
-function taskRow(t){return `<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`}
-function shopRow(s){return `<div class="row click-row" onclick="openItemDetail('shop','${s.id}')"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div>${s.note?`<div class="meta note-body-preview">${esc(s.note)}</div>`:""}</div>${avatar(s.by,true)}<span class="chev">›</span></div>`}
+
+let swipeClickBlockedUntil=0;
+
+function swipeClickOk(){return Date.now()>swipeClickBlockedUntil}
+
+function swipeWrap(type,id,content){
+  return `<div class="swipe-item" data-swipe-type="${type}" data-swipe-id="${id}">
+    <button class="swipe-delete-btn" onclick="event.stopPropagation();swipeDelete('${type}','${id}')">🗑 Löschen</button>
+    <div class="swipe-content">${content}</div>
+  </div>`;
+}
+
+function closeOtherSwipeRows(except){
+  document.querySelectorAll(".swipe-item.swipe-open").forEach(el=>{
+    if(el!==except){
+      el.classList.remove("swipe-open");
+      const c=el.querySelector(".swipe-content");
+      if(c)c.style.transform="";
+    }
+  });
+}
+
+function initSwipeRows(){
+  document.querySelectorAll(".swipe-item").forEach(item=>{
+    const content=item.querySelector(".swipe-content");
+    if(!content||item.dataset.swipeReady)return;
+    item.dataset.swipeReady="1";
+    let startX=0,startY=0,dx=0,active=false,horizontal=false;
+
+    content.addEventListener("touchstart",e=>{
+      if(e.touches.length!==1)return;
+      closeOtherSwipeRows(item);
+      const t=e.touches[0];
+      startX=t.clientX;startY=t.clientY;dx=0;active=true;horizontal=false;
+      content.style.transition="none";
+    },{passive:true});
+
+    content.addEventListener("touchmove",e=>{
+      if(!active||e.touches.length!==1)return;
+      const t=e.touches[0];
+      const x=t.clientX-startX,y=t.clientY-startY;
+      if(!horizontal&&Math.abs(x)>8){
+        if(Math.abs(x)>Math.abs(y)*1.15)horizontal=true;
+        else if(Math.abs(y)>Math.abs(x)){active=false;content.style.transition="";return}
+      }
+      if(!horizontal)return;
+      e.preventDefault();
+      dx=x;
+      const base=item.classList.contains("swipe-open")?-92:0;
+      const pos=Math.max(-108,Math.min(10,base+dx));
+      content.style.transform=`translateX(${pos}px)`;
+    },{passive:false});
+
+    content.addEventListener("touchend",()=>{
+      if(!active&&!horizontal){content.style.transition="";return}
+      content.style.transition="";
+      if(horizontal){
+        swipeClickBlockedUntil=Date.now()+350;
+        const wasOpen=item.classList.contains("swipe-open");
+        if((!wasOpen&&dx<-38)||(wasOpen&&dx<28)){
+          item.classList.add("swipe-open");
+          content.style.transform="translateX(-92px)";
+        }else{
+          item.classList.remove("swipe-open");
+          content.style.transform="";
+        }
+      }
+      active=false;horizontal=false;dx=0;
+    },{passive:true});
+  });
+}
+
+async function swipeDelete(type,id){
+  if(!requireGeneralEdit())return;
+
+  if(type==="note"){
+    const n=db.notes.find(x=>x.id===id);
+    if(!n)return;
+    // If files exist, remove them from private storage too.
+    for(const a of (n.attachments||[])){
+      try{await deleteStorageObject(a.path)}catch(e){console.warn(e)}
+    }
+    db.notes=db.notes.filter(x=>x.id!==id);
+    addActivity("🗑️",`hat „${n.title||"Pinnwand"}“ gelöscht.`,"note",id);
+  }else{
+    const map={
+      task:"tasks",
+      shop:"shopping",
+      event:"events",
+      inbox:"inbox",
+      meal:"meals",
+      occasion:"occasions"
+    };
+    const collection=map[type];
+    if(!collection)return;
+    const item=db[collection]?.find(x=>x.id===id);
+    db[collection]=db[collection].filter(x=>x.id!==id);
+    const label=item?.title||item?.name||item?.text||"Eintrag";
+    const icon={task:"✓",shop:"🛒",event:"📅",inbox:"📥",meal:"🍲",occasion:"🎉"}[type]||"🗑️";
+    addActivity("🗑️",`hat „${label}“ gelöscht.`,type,id);
+  }
+  state.itemDetail=null;
+  state.noteDetailId=null;
+  save();
+  render();
+}
+
+function taskRow(t){return swipeWrap("task",t.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`)}
+function shopRow(s){return swipeWrap("shop",s.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('shop','${s.id}')"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div>${s.note?`<div class="meta note-body-preview">${esc(s.note)}</div>`:""}</div>${avatar(s.by,true)}<span class="chev">›</span></div>`)}
 function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
 
 
@@ -950,7 +1065,7 @@ function activityRows(limit=6){
   </div>`).join("")||'<div class="notice">Noch keine Aktivitäten.</div>';
 }
 function dashboardCard(key,ctx){
-  if(key==="events")return `<section class="card s7"><div class="section-head"><h3>📅 Heute anstehend</h3><button class="card-link" onclick="go('calendar')">Kalender →</button></div>${ctx.ev.length?ctx.ev.map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}<span class="chev">›</span></div>`).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>`;
+  if(key==="events")return `<section class="card s7"><div class="section-head"><h3>📅 Heute anstehend</h3><button class="card-link" onclick="go('calendar')">Kalender →</button></div>${ctx.ev.length?ctx.ev.map(e=>swipeWrap("event",e.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('event','${e.id}')"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}<span class="chev">›</span></div>`)).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>`;
   if(key==="tasks")return `<section class="card s6"><div class="section-head"><h3>✓ Offene Aufgaben</h3><button class="card-link" onclick="go('tasks')">Alle →</button></div>${ctx.tasks.slice(0,4).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section>`;
   if(key==="shopping")return `<section class="card s6"><div class="section-head"><h3>🛒 Einkauf</h3><button class="card-link" onclick="go('shopping')">Liste →</button></div>${ctx.shopping.slice(0,4).map(shopRow).join("")||'<div class="notice success">Nichts offen.</div>'}</section>`;
   if(key==="notes")return `<section class="card s6"><div class="section-head"><h3>📌 Pinnwand</h3><button class="card-link" onclick="go('notes')">Alle →</button></div>${sortedNotes().slice(0,3).map(n=>notePreview(n)).join("")||'<div class="notice">Noch nichts angepinnt.</div>'}</section>`;
@@ -1017,8 +1132,9 @@ function calendarView(){
       return `<section class="card s4"><div class="person-card">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${count} Termine im eigenen Kalender</div></div></div></section>`;
    }).join("")}
  </div>
+ <div class="swipe-hint">← Termin nach links wischen zum Löschen</div>
  <section class="card s12 calendar-list">
-   ${visible.length?visible.map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')">
+   ${visible.length?visible.map(e=>swipeWrap("event",e.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('event','${e.id}')">
       ${calendarAvatar(e.calendarOwner)}
       <div class="time">${e.time}</div>
       <div class="grow">
@@ -1026,11 +1142,11 @@ function calendarView(){
         <div class="meta">${fmtDate(e.date)} · ${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div>
       </div>
       <span class="chev">›</span>
-   </div>`).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
+   </div>`)).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
  </section>`;
 }
-function tasksView(){return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="grid"><section class="card s8">${db.tasks.filter(t=>!t.done).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">offen</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
-function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
+function tasksView(){return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">← Eintrag nach links wischen zum Löschen</div><div class="grid"><section class="card s8">${db.tasks.filter(t=>!t.done).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">offen</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
+function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><div class="swipe-hint">← Artikel nach links wischen zum Löschen</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
 function wishesView(){
  const owners=[...new Set(db.wishes.map(w=>w.owner))];
  return `<div class="section-title"><h2>Wunschlisten</h2><button class="primary" onclick="openModal('wish')">+ Wunsch</button></div>
@@ -1048,7 +1164,7 @@ function wishesView(){
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
 function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
-function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><section class="card s12">${db.occasions.map(o=>`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div><button class="danger" onclick="removeItem('occasions','${o.id}')">Löschen</button></div>`).join("")}</section>`}
+function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
 
 function openItemDetail(type,id){state.itemDetail={type,id};state.noteDetailId=null;state.quickMenu=false;render()}
@@ -1153,7 +1269,7 @@ function sortedNotes(){
  });
 }
 function notePreview(n){
- return `<div class="row note-preview" onclick="openNote('${n.id}')">
+ return swipeWrap("note",n.id,`<div class="row note-preview" onclick="if(swipeClickOk())openNote('${n.id}')">
    ${avatar(n.author,true)}
    <div class="grow">
      <div class="title">${n.pinned?"📌 ":""}${esc(n.title||"Pinnwand")}</div>
@@ -1162,7 +1278,7 @@ function notePreview(n){
      ${n.attachments?.length?`<div class="meta" style="margin-top:5px">📎 ${n.attachments.length} Anhang${n.attachments.length===1?"":"e"}</div>`:""}
    </div>
    <span class="muted">›</span>
- </div>`;
+ </div>`);
 }
 function openNote(id){state.noteDetailId=id;render();setTimeout(()=>loadNoteAttachments(id),30)}
 function closeNote(){state.noteDetailId=null;render()}
@@ -1228,6 +1344,7 @@ function editNote(id){
 }
 function notesView(){
  return `<div class="section-title"><div><h2>Pinnwand</h2><div class="small">Tippe auf einen Eintrag, um alles zu lesen, zu reagieren oder ihn zu bearbeiten.</div></div><button class="primary" onclick="openModal('note')">+ Eintrag</button></div>
+ <div class="swipe-hint">← Eintrag nach links wischen zum Löschen</div>
  <section class="card s12">${sortedNotes().map(notePreview).join("")||'<div class="notice">Noch nichts auf der Pinnwand.</div>'}</section>`;
 }
 function familyView(){
@@ -1290,7 +1407,8 @@ function addMealToShopping(id){
 function mealsView(){
  return `<div class="section-title"><div><h2>Essensplan</h2><div class="small">Gerichte planen und Zutaten direkt auf die Einkaufsliste setzen.</div></div><button class="primary" onclick="openModal('meal')">+ Gericht</button></div>
  <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
- <section class="card s12">${sortedMeals().map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="danger" onclick="removeItem('meals','${m.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
+ <div class="swipe-hint">← Gericht nach links wischen zum Löschen</div>
+ <section class="card s12">${sortedMeals().map(m=>swipeWrap("meal",m.id,`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="event.stopPropagation();addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}</div></div>`)).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
 }
 function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
@@ -1361,9 +1479,10 @@ function remindersView(){
 
 function inboxView(){
  return `<div class="section-title"><div><h2>Familien-Inbox</h2><div class="small">Gedanken schnell ablegen und später mit einem Tipp einsortieren.</div></div>${canEditGeneral()?`<button class="primary" onclick="openModal('inbox')">+ Schnellnotiz</button>`:""}</div>
+ <div class="swipe-hint">← Schnellnotiz nach links wischen zum Löschen</div>
  <div class="grid">
   <section class="card s8">
-   ${db.inbox.length?db.inbox.map(i=>`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)} · ${new Date(i.created).toLocaleString("de-DE")}</div>${canEditGeneral()?`<div class="inbox-actions"><button class="mini" onclick="convertInbox('${i.id}','task')">✓ Aufgabe</button><button class="mini" onclick="convertInbox('${i.id}','event')">📅 Termin</button><button class="mini" onclick="convertInbox('${i.id}','shop')">🛒 Einkauf</button><button class="mini" onclick="convertInbox('${i.id}','note')">📌 Pinnwand</button></div>`:""}</div>${canEditGeneral()?`<button class="danger" onclick="removeItem('inbox','${i.id}')">Löschen</button>`:""}</div>`).join(""):`<div class="notice success">Alles einsortiert 🎉</div>`}
+   ${db.inbox.length?db.inbox.map(i=>swipeWrap("inbox",i.id,`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)} · ${new Date(i.created).toLocaleString("de-DE")}</div>${canEditGeneral()?`<div class="inbox-actions"><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','task')">✓ Aufgabe</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','event')">📅 Termin</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','shop')">🛒 Einkauf</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','note')">📌 Pinnwand</button></div>`:""}</div></div>`)).join(""):`<div class="notice success">Alles einsortiert 🎉</div>`}
   </section>
   <section class="card s4"><h3>💡 Wofür ist die Inbox?</h3><div class="notice">Hier landet alles, was dir gerade einfällt. Später kannst du daraus direkt einen Termin, eine Aufgabe, einen Einkauf oder eine Pinnwand-Notiz machen.</div><div class="kpi-grid" style="margin-top:12px"><div class="kpi-box"><div class="kpi">${db.inbox.length}</div><div class="kpi-label">offen</div></div><div class="kpi-box"><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">Aufgaben</div></div><div class="kpi-box"><div class="kpi">${db.shopping.filter(s=>!s.done).length}</div><div class="kpi-label">Einkauf</div></div></div></section>
  </div>`;
@@ -1483,6 +1602,7 @@ function render(){
  restoreModalDraft();
  checkReminders();
  if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
+ setTimeout(initSwipeRows,0);
 }
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;addActivity(s.done?"✅":"↩️",s.done?`hat „${s.name}“ beim Einkauf erledigt.`:`hat „${s.name}“ wieder auf die Einkaufsliste gesetzt.`,"shop",s.id);save();render()}
@@ -1580,6 +1700,12 @@ if("serviceWorker" in navigator){
 window.state=state;
 const recoveryDetected=detectPasswordRecovery();
 if(!recoveryDetected&&cloud.enabled&&cloud.accessToken){bootstrapCloud()}
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".swipe-item")){
+    closeOtherSwipeRows(null);
+  }
+});
+
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible"&&cloud.enabled&&cloud.accessToken){
     ensureFreshSession(false).then(()=>cloud.familyId&&cloudSyncCycle(true)).catch(e=>setCloudStatus(e.message,false));
