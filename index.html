@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v10.3</title>
+<title>FamilienHub v10.4</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -253,6 +253,19 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .gift-filter button.active{background:#f0e2d6;border-color:#dfc2ad;font-weight:800}
 .gift-price{font-weight:800;white-space:nowrap}
 @media(max-width:620px){.gift-summary{grid-template-columns:repeat(2,1fr)}.gift-row{align-items:flex-start}.gift-actions{flex-direction:column}.gift-actions button{width:100%}}
+.gift-photo{width:58px;height:58px;border-radius:14px;object-fit:cover;background:#f0e6dc;border:1px solid var(--line);flex:none}
+.gift-photo-placeholder{width:58px;height:58px;border-radius:14px;background:#f0e6dc;border:1px solid var(--line);display:grid;place-items:center;font-size:24px;flex:none}
+.gift-prio{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:800;margin-left:4px}
+.gift-prio.high{background:#f5dfdc;color:#a04e45}
+.gift-prio.normal{background:#eef0e4;color:#6d7252}
+.gift-prio.low{background:#ece8e4;color:#7c7169}
+.gift-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.gift-filters select{width:auto;min-width:150px}
+.gift-hide{display:inline-flex;align-items:center;gap:5px;border-radius:999px;background:#efe7f4;color:#70627f;padding:4px 7px;font-size:10px;font-weight:800}
+.gift-photo-preview{max-width:220px;border-radius:16px;border:1px solid var(--line);margin-top:8px}
+.gift-person-total{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
+@media(max-width:620px){.gift-filters{align-items:stretch}.gift-filters select{width:100%}}
+
 
 
 
@@ -412,6 +425,11 @@ for(const n of db.notes){
 for(const k of ["routines","school","pantry","trips","documents","familyStatus","gifts"]){
   if(!Array.isArray(db[k]))db[k]=[];
 }
+for(const g of db.gifts){
+  if(!g.priority)g.priority="normal";
+  if(!g.hidePlace)g.hidePlace="";
+  if(!g.photo)g.photo=null;
+}
 for(const e of db.events){if(!Array.isArray(e.comments))e.comments=[]}
 for(const t of db.tasks){if(!Array.isArray(t.comments))t.comments=[]}
 for(const r of db.routines){
@@ -433,7 +451,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open"};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open",giftRecipientFilter:"all",giftOccasionFilter:"all"};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -1112,7 +1130,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.3</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.4</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -1156,7 +1174,7 @@ function globalSearchResults(q){
     out.push({kind:"trip",id:t.id,icon:"🧳",title:t.title,meta:`Reise · ${t.destination||""}`});
   for(const d of db.documents)if(searchHay(d.title,d.category,d.owner,d.note).includes(needle))
     out.push({kind:"document",id:d.id,icon:"📂",title:d.title,meta:`Dokument · ${d.category||""}`});
-  if(canManageFamily())for(const g of (db.gifts||[]))if(searchHay(g.title,g.recipient,g.occasion,g.store,g.note,g.buyer).includes(needle))
+  if(canManageFamily())for(const g of (db.gifts||[]))if(searchHay(g.title,g.recipient,g.occasion,g.store,g.note,g.buyer,g.hidePlace,g.priority).includes(needle))
     out.push({kind:"gift",id:g.id,icon:"🎁",title:g.title,meta:`Privates Geschenk · ${g.recipient}`});
   return out.slice(0,50);
 }
@@ -2195,29 +2213,91 @@ function wishesView(){
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
 
+
+const GIFT_BUCKET="familienhub-gifts";
+const giftPhotoUrls=new Map();
+async function uploadGiftPhoto(giftId,file){
+  if(!file)return null;
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)throw new Error("Geschenk-Fotos benötigen die Supabase-Familien-Synchronisierung.");
+  await ensureFreshSession(false);
+  const p=await prepareMediaFile(file);
+  if(!p.type.startsWith("image/"))throw new Error("Bitte ein Bild auswählen.");
+  const objectId=crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2);
+  const path=`${cloud.familyId}/${giftId}/${objectId}.${p.ext}`;
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+GIFT_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{method:"POST",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken,"Content-Type":p.type,"x-upsert":"false"},body:p.blob});
+  let d={};try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error(d.message||d.error||`Upload fehlgeschlagen (${r.status})`);
+  return {path,name:safeFileName(p.name),type:p.type,size:p.blob.size};
+}
+async function fetchGiftPhoto(photo){
+  if(!photo?.path)return "";
+  if(giftPhotoUrls.has(photo.path))return giftPhotoUrls.get(photo.path);
+  await ensureFreshSession(false);
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/authenticated/"+GIFT_BUCKET+"/"+photo.path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok)return "";
+  const blob=await r.blob(),obj=URL.createObjectURL(blob);
+  giftPhotoUrls.set(photo.path,obj);return obj;
+}
+async function deleteGiftPhotoObject(photo){
+  if(!photo?.path||!cloud.enabled)return;
+  try{
+    await ensureFreshSession(false);
+    const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+GIFT_BUCKET+"/"+photo.path.split("/").map(encodeURIComponent).join("/");
+    await fetch(url,{method:"DELETE",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  }catch(e){console.warn("Gift photo delete:",e)}
+}
+async function loadGiftPhotos(){
+  if(!canManageFamily())return;
+  const els=[...document.querySelectorAll("[data-gift-photo]")];
+  for(const el of els){
+    const id=el.dataset.giftPhoto,g=db.gifts.find(x=>x.id===id);
+    if(!g?.photo)continue;
+    try{const u=await fetchGiftPhoto(g.photo);if(u)el.src=u}catch(e){console.warn("Gift photo:",e)}
+  }
+}
+
 function giftStatusLabel(s){return ({idea:"Idee",planned:"Geplant",bought:"Gekauft",wrapped:"Eingepackt",given:"Verschenkt"}[s]||"Idee")}
 function giftStatusRank(s){return ({idea:0,planned:1,bought:2,wrapped:3,given:4}[s]??0)}
+function giftPriorityLabel(s){return ({high:"Wichtig",normal:"Normal",low:"Irgendwann"}[s]||"Normal")}
 function giftOpen(g){return g.status!=="given"}
 function giftRecipientNames(){return [...new Set([...(db.family||[]).map(p=>p.name),...(db.gifts||[]).map(g=>g.recipient).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,"de"))}
+function giftOccasions(){return [...new Set((db.gifts||[]).map(g=>g.occasion).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"de"))}
 function giftTotal(field){return (db.gifts||[]).filter(g=>giftOpen(g)).reduce((n,g)=>n+(Number(g[field])||0),0)}
 function giftStatusCounts(){const xs=db.gifts||[];return {open:xs.filter(g=>giftOpen(g)).length,bought:xs.filter(g=>["bought","wrapped"].includes(g.status)).length,wrapped:xs.filter(g=>g.status==="wrapped").length,given:xs.filter(g=>g.status==="given").length}}
 function setGiftStatus(id,status){if(!requireParent())return;const g=db.gifts.find(x=>x.id===id);if(!g)return;g.status=status;g.updatedAt=new Date().toISOString();g.updatedBy=currentDisplayName();save();render()}
 function nextGiftStatus(id){const g=db.gifts.find(x=>x.id===id);if(!g)return;const order=["idea","planned","bought","wrapped","given"],i=Math.max(0,order.indexOf(g.status||"idea"));setGiftStatus(id,order[Math.min(order.length-1,i+1)])}
-function deleteGift(id){if(!requireParent())return;const g=db.gifts.find(x=>x.id===id);if(!g)return;if(!confirm(`Geschenk „${g.title}“ für ${g.recipient} wirklich löschen?`))return;db.gifts=db.gifts.filter(x=>x.id!==id);save();render()}
+async function deleteGift(id){
+  if(!requireParent())return;
+  const g=db.gifts.find(x=>x.id===id);if(!g)return;
+  if(!confirm(`Geschenk „${g.title}“ für ${g.recipient} wirklich löschen?`))return;
+  await deleteGiftPhotoObject(g.photo);
+  db.gifts=db.gifts.filter(x=>x.id!==id);save();render();
+}
 function editGift(id){if(!requireParent())return;state.modal={type:"giftEdit",editId:id,values:{}};render()}
 function giftDueText(g){if(!g.dueDate)return "";const n=daysUntil(g.dueDate);if(n<0&&g.status!=="given")return ` · <span class="overdue">Termin vorbei</span>`;if(n===0)return ` · heute`;if(n>0&&n<=14)return ` · noch ${n} Tag${n===1?"":"e"}`;return ""}
+function giftFiltered(){
+  let xs=[...(db.gifts||[])];
+  if(state.giftFilter==="given")xs=xs.filter(g=>g.status==="given");
+  else if(state.giftFilter!=="all")xs=xs.filter(g=>giftOpen(g));
+  if(state.giftRecipientFilter!=="all")xs=xs.filter(g=>g.recipient===state.giftRecipientFilter);
+  if(state.giftOccasionFilter!=="all")xs=xs.filter(g=>g.occasion===state.giftOccasionFilter);
+  return xs.sort((a,b)=>{
+    const pr={high:0,normal:1,low:2};
+    return (pr[a.priority]??1)-(pr[b.priority]??1)||giftStatusRank(a.status)-giftStatusRank(b.status)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.recipient||"").localeCompare(String(b.recipient||""),"de");
+  });
+}
 function giftsView(){
   if(!canManageFamily())return `<div></div>`;
-  const all=[...(db.gifts||[])].sort((a,b)=>giftStatusRank(a.status)-giftStatusRank(b.status)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.recipient||"").localeCompare(String(b.recipient||""),"de"));
-  const xs=state.giftFilter==="all"?all:state.giftFilter==="given"?all.filter(g=>g.status==="given"):all.filter(g=>giftOpen(g));
-  const groups=[...new Set(xs.map(g=>g.recipient||"Ohne Namen"))],c=giftStatusCounts(),budget=giftTotal("budget"),spent=giftTotal("price");
+  const xs=giftFiltered(),groups=[...new Set(xs.map(g=>g.recipient||"Ohne Namen"))],c=giftStatusCounts(),budget=giftTotal("budget"),spent=giftTotal("price");
   return `<div class="section-title"><div><h2>🎁 Geschenke</h2><div class="small">Private Geschenkplanung nur für Eltern.</div></div><button class="primary" onclick="openModal('gift')">+ Geschenk</button></div>
-  <div class="gift-private"><span style="font-size:22px">🔒</span><div><b>Nur für Eltern sichtbar</b><div class="meta">Kinder und Gäste bekommen diesen Bereich weder im Menü noch über die Synchronisierung zu sehen. Empfänger müssen keine FamilienHub-Mitglieder sein.</div></div></div>
+  <div class="gift-private"><span style="font-size:22px">🔒</span><div><b>Nur für Eltern sichtbar</b><div class="meta">Kinder und Gäste bekommen diesen Bereich weder im Menü noch über die Synchronisierung zu sehen. Empfänger können beliebige Namen sein.</div></div></div>
   <div class="gift-summary"><div class="gift-kpi"><b>${c.open}</b><span>offen</span></div><div class="gift-kpi"><b>${c.bought}</b><span>gekauft</span></div><div class="gift-kpi"><b>${budget.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>geplant</span></div><div class="gift-kpi"><b>${spent.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>ausgegeben</span></div></div>
   <div class="gift-filter"><button class="${state.giftFilter==="open"?"active":""}" onclick="state.giftFilter='open';render()">Offen</button><button class="${state.giftFilter==="given"?"active":""}" onclick="state.giftFilter='given';render()">Verschenkt</button><button class="${state.giftFilter==="all"?"active":""}" onclick="state.giftFilter='all';render()">Alle</button></div>
-  ${groups.map(name=>{const items=xs.filter(g=>(g.recipient||"Ohne Namen")===name);return `<div class="gift-group"><div class="gift-head"><div><div class="title">🎀 ${esc(name)}</div><div class="meta">${items.length} Geschenk${items.length===1?"":"e"}</div></div></div>${items.map(g=>`<div class="gift-row"><div class="grow"><div class="title">${esc(g.title)} <span class="gift-status ${esc(g.status||"idea")}">${esc(giftStatusLabel(g.status))}</span></div><div class="meta">${g.occasion?esc(g.occasion):""}${g.dueDate?`${g.occasion?" · ":""}${fmtDate(g.dueDate)}${giftDueText(g)}`:""}${g.store?` · ${esc(g.store)}`:""}${g.buyer?` · besorgt von ${esc(g.buyer)}`:""}</div>${g.note?`<div class="meta note-body-preview">${esc(g.note)}</div>`:""}</div>${g.price?`<div class="gift-price">${Number(g.price).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="gift-actions">${g.url?`<button class="ghost" onclick="window.open('${esc(g.url)}','_blank','noopener')">Link</button>`:""}${g.status!=="given"?`<button class="primary" onclick="nextGiftStatus('${g.id}')">${g.status==="wrapped"?"Verschenkt":g.status==="bought"?"Eingepackt":g.status==="planned"?"Gekauft":"Planen"} →</button>`:""}<button class="ghost" onclick="editGift('${g.id}')">Bearbeiten</button><button class="danger" onclick="deleteGift('${g.id}')">Löschen</button></div></div>`).join("")}</div>`}).join("")||'<div class="notice">Noch keine Geschenke eingetragen.</div>'}`;
+  <div class="gift-filters"><select onchange="state.giftRecipientFilter=this.value;render()"><option value="all">Alle Empfänger</option>${giftRecipientNames().map(n=>`<option value="${esc(n)}" ${state.giftRecipientFilter===n?"selected":""}>${esc(n)}</option>`).join("")}</select><select onchange="state.giftOccasionFilter=this.value;render()"><option value="all">Alle Anlässe</option>${giftOccasions().map(n=>`<option value="${esc(n)}" ${state.giftOccasionFilter===n?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
+  ${groups.map(name=>{const items=xs.filter(g=>(g.recipient||"Ohne Namen")===name),sum=items.reduce((n,g)=>n+(Number(g.price)||0),0);return `<div class="gift-group"><div class="gift-head"><div><div class="title">🎀 ${esc(name)}</div><div class="gift-person-total"><span class="meta">${items.length} Geschenk${items.length===1?"":"e"}</span>${sum?`<span class="meta">${sum.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</span>`:""}</div></div></div>${items.map(g=>`<div class="gift-row">${g.photo?`<img class="gift-photo" data-gift-photo="${g.id}" alt="">`:`<div class="gift-photo-placeholder">🎁</div>`}<div class="grow"><div class="title">${esc(g.title)} <span class="gift-status ${esc(g.status||"idea")}">${esc(giftStatusLabel(g.status))}</span><span class="gift-prio ${esc(g.priority||"normal")}">${esc(giftPriorityLabel(g.priority))}</span></div><div class="meta">${g.occasion?esc(g.occasion):""}${g.dueDate?`${g.occasion?" · ":""}${fmtDate(g.dueDate)}${giftDueText(g)}`:""}${g.store?` · ${esc(g.store)}`:""}${g.buyer?` · besorgt von ${esc(g.buyer)}`:""}</div>${g.hidePlace?`<div class="meta"><span class="gift-hide">🙈 Versteckt: ${esc(g.hidePlace)}</span></div>`:""}${g.note?`<div class="meta note-body-preview">${esc(g.note)}</div>`:""}</div>${g.price?`<div class="gift-price">${Number(g.price).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="gift-actions">${g.url?`<button class="ghost" onclick="window.open('${esc(g.url)}','_blank','noopener')">Link</button>`:""}${g.status!=="given"?`<button class="primary" onclick="nextGiftStatus('${g.id}')">${g.status==="wrapped"?"Verschenkt":g.status==="bought"?"Eingepackt":g.status==="planned"?"Gekauft":"Planen"} →</button>`:""}<button class="ghost" onclick="editGift('${g.id}')">Bearbeiten</button><button class="danger" onclick="deleteGift('${g.id}')">Löschen</button></div></div>`).join("")}</div>`}).join("")||'<div class="notice">Für diesen Filter sind keine Geschenke vorhanden.</div>'}`;
 }
-
 function moreView(){const xs=[...(canManageFamily()?[["gifts","🎁","Geschenke · Eltern"]]:[]),["cockpit","👨‍👩‍👧‍👦","Familien-Cockpit"],["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
@@ -2753,7 +2833,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.3 ergänzt einen serverseitig abgeschirmten privaten Geschenkbereich nur für Eltern.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.4 erweitert den privaten Geschenkbereich um Fotos, Prioritäten, Versteck-Ort und Anlass-/Empfängerfilter.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
@@ -2795,6 +2875,7 @@ function render(){
    restoreModalDraft();
    checkReminders();
    if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
+   if(state.view==="gifts"&&canManageFamily())setTimeout(loadGiftPhotos,40);
    setTimeout(initSwipeRows,0);
    if(state.searchOpen)setTimeout(()=>document.getElementById("globalSearch")?.focus(),30);
  }catch(e){renderCrash(e)}
@@ -2815,9 +2896,9 @@ shop:`<div class="full"><label>Artikel</label><input id="fTitle"></div><div><lab
 shoppingList:`<div class="full"><label>Name der Liste</label><input id="fTitle" placeholder="z.B. Apotheke"></div><div><label>Emoji</label><input id="fIcon" value="🛍️"></div>`,
 wish:`<div class="full"><label>Wunsch</label><input id="fTitle"></div><div><label>Für wen?</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Link optional</label><input id="fUrl" type="url"></div>`,
 occasion:`<div class="full"><label>Anlass</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Art</label><select id="fKind"><option>Geburtstag</option><option>Jahrestag</option><option>Feiertag</option><option>Sonstiges</option></select></div><div><label>Erinnerung Tage vorher</label><input id="fRemind" type="number" value="7"></div>`,
-gift:`<div class="full"><label>Geschenk / Idee</label><input id="fTitle" placeholder="z. B. Fotobuch"></div><div class="full"><label>Für wen?</label><input id="fRecipient" list="giftRecipients" placeholder="Name frei eingeben – auch außerhalb der Familie"><datalist id="giftRecipients">${giftRecipientNames().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist></div><div><label>Anlass</label><input id="fOccasion" placeholder="Geburtstag, Weihnachten …"></div><div><label>Bis wann?</label><input id="fDate" type="date"></div><div><label>Status</label><select id="fGiftStatus"><option value="idea">Idee</option><option value="planned">Geplant</option><option value="bought">Gekauft</option><option value="wrapped">Eingepackt</option><option value="given">Verschenkt</option></select></div><div><label>Wer kümmert sich?</label><input id="fBuyer" list="giftBuyers" value="${esc(currentDisplayName())}"><datalist id="giftBuyers">${db.family.map(p=>`<option value="${esc(p.name)}"></option>`).join("")}</datalist></div><div><label>Budget €</label><input id="fBudget" type="number" min="0" step="0.01"></div><div><label>Bezahlt €</label><input id="fPrice" type="number" min="0" step="0.01"></div><div><label>Geschäft / Quelle</label><input id="fStore"></div><div class="full"><label>Link optional</label><input id="fUrl" type="url" placeholder="https://…"></div><div class="full"><label>Private Notiz</label><textarea id="fNote" placeholder="Größe, Farbe, Idee, wo versteckt …"></textarea></div>`,
+gift:`<div class="full"><label>Geschenk / Idee</label><input id="fTitle" placeholder="z. B. Fotobuch"></div><div class="full"><label>Für wen?</label><input id="fRecipient" list="giftRecipients" placeholder="Name frei eingeben – auch außerhalb der Familie"><datalist id="giftRecipients">${giftRecipientNames().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist></div><div><label>Anlass</label><input id="fOccasion" placeholder="Geburtstag, Weihnachten …"></div><div><label>Bis wann?</label><input id="fDate" type="date"></div><div><label>Status</label><select id="fGiftStatus"><option value="idea">Idee</option><option value="planned">Geplant</option><option value="bought">Gekauft</option><option value="wrapped">Eingepackt</option><option value="given">Verschenkt</option></select></div><div><label>Priorität</label><select id="fPriority"><option value="high">Wichtig</option><option value="normal" selected>Normal</option><option value="low">Irgendwann</option></select></div><div><label>Wer kümmert sich?</label><input id="fBuyer" list="giftBuyers" value="${esc(currentDisplayName())}"><datalist id="giftBuyers">${db.family.map(p=>`<option value="${esc(p.name)}"></option>`).join("")}</datalist></div><div><label>Budget €</label><input id="fBudget" type="number" min="0" step="0.01"></div><div><label>Bezahlt €</label><input id="fPrice" type="number" min="0" step="0.01"></div><div><label>Geschäft / Quelle</label><input id="fStore"></div><div><label>Versteck-Ort</label><input id="fHidePlace" placeholder="z. B. Keller, Schrank oben"></div><div class="full"><label>Link optional</label><input id="fUrl" type="url" placeholder="https://…"></div><div class="full media-picker"><label>📷 Foto optional</label><input id="fGiftPhoto" type="file" accept="image/*"><div class="media-help">Wird privat in Supabase gespeichert und ist nur für Eltern abrufbar.</div></div><div class="full"><label>Private Notiz</label><textarea id="fNote" placeholder="Größe, Farbe, Idee, Details …"></textarea></div>`,
 
-giftEdit:`${(()=>{const g=db.gifts.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Geschenk / Idee</label><input id="fTitle" value="${esc(g.title||"")}"></div><div class="full"><label>Für wen?</label><input id="fRecipient" list="giftRecipientsEdit" value="${esc(g.recipient||"")}" placeholder="Name frei eingeben"><datalist id="giftRecipientsEdit">${giftRecipientNames().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist></div><div><label>Anlass</label><input id="fOccasion" value="${esc(g.occasion||"")}"></div><div><label>Bis wann?</label><input id="fDate" type="date" value="${esc(g.dueDate||"")}"></div><div><label>Status</label><select id="fGiftStatus">${[["idea","Idee"],["planned","Geplant"],["bought","Gekauft"],["wrapped","Eingepackt"],["given","Verschenkt"]].map(([v,l])=>`<option value="${v}" ${g.status===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Wer kümmert sich?</label><input id="fBuyer" list="giftBuyersEdit" value="${esc(g.buyer||"")}"><datalist id="giftBuyersEdit">${db.family.map(p=>`<option value="${esc(p.name)}"></option>`).join("")}</datalist></div><div><label>Budget €</label><input id="fBudget" type="number" min="0" step="0.01" value="${Number(g.budget||0)||""}"></div><div><label>Bezahlt €</label><input id="fPrice" type="number" min="0" step="0.01" value="${Number(g.price||0)||""}"></div><div><label>Geschäft / Quelle</label><input id="fStore" value="${esc(g.store||"")}"></div><div class="full"><label>Link optional</label><input id="fUrl" type="url" value="${esc(g.url||"")}"></div><div class="full"><label>Private Notiz</label><textarea id="fNote">${esc(g.note||"")}</textarea></div>`})()}`,
+giftEdit:`${(()=>{const g=db.gifts.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Geschenk / Idee</label><input id="fTitle" value="${esc(g.title||"")}"></div><div class="full"><label>Für wen?</label><input id="fRecipient" list="giftRecipientsEdit" value="${esc(g.recipient||"")}" placeholder="Name frei eingeben"><datalist id="giftRecipientsEdit">${giftRecipientNames().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist></div><div><label>Anlass</label><input id="fOccasion" value="${esc(g.occasion||"")}"></div><div><label>Bis wann?</label><input id="fDate" type="date" value="${esc(g.dueDate||"")}"></div><div><label>Status</label><select id="fGiftStatus">${[["idea","Idee"],["planned","Geplant"],["bought","Gekauft"],["wrapped","Eingepackt"],["given","Verschenkt"]].map(([v,l])=>`<option value="${v}" ${g.status===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Priorität</label><select id="fPriority">${[["high","Wichtig"],["normal","Normal"],["low","Irgendwann"]].map(([v,l])=>`<option value="${v}" ${(g.priority||"normal")===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Wer kümmert sich?</label><input id="fBuyer" list="giftBuyersEdit" value="${esc(g.buyer||"")}"><datalist id="giftBuyersEdit">${db.family.map(p=>`<option value="${esc(p.name)}"></option>`).join("")}</datalist></div><div><label>Budget €</label><input id="fBudget" type="number" min="0" step="0.01" value="${Number(g.budget||0)||""}"></div><div><label>Bezahlt €</label><input id="fPrice" type="number" min="0" step="0.01" value="${Number(g.price||0)||""}"></div><div><label>Geschäft / Quelle</label><input id="fStore" value="${esc(g.store||"")}"></div><div><label>Versteck-Ort</label><input id="fHidePlace" value="${esc(g.hidePlace||"")}"></div><div class="full"><label>Link optional</label><input id="fUrl" type="url" value="${esc(g.url||"")}"></div>${g.photo?`<div class="full"><div class="notice">📷 Ein Foto ist gespeichert. Wähle unten ein neues Bild, um es zu ersetzen.</div></div>`:""}<div class="full media-picker"><label>📷 ${g.photo?"Foto ersetzen":"Foto hinzufügen"}</label><input id="fGiftPhoto" type="file" accept="image/*"></div><div class="full"><label>Private Notiz</label><textarea id="fNote">${esc(g.note||"")}</textarea></div>`})()}`,
 eventEdit:`${(()=>{const e=db.events.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(e.title||"")}"></div><div><label>Datum</label><input id="fDate" type="date" value="${esc(e.date||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(e.time||"18:00")}"></div><div><label>Kalender</label><select id="fCalendar"><option value="family" ${e.calendarOwner==="family"?"selected":""}>♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}" ${e.calendarOwner===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace" value="${esc(e.place||"")}"></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"],[10080,"1 Woche vorher"]].map(([v,l])=>`<option value="${v}" ${Number(e.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(e.note||"")}</textarea></div>`})()}`,
 taskEdit:`${(()=>{const t=db.tasks.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Aufgabe</label><input id="fTitle" value="${esc(t.title||"")}"></div><div><label>Fällig</label><input id="fDate" type="date" value="${esc(t.due||todayISO())}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(t.time||"18:00")}"></div><div><label>Zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${t.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low" ${t.prio==="low"?"selected":""}>Normal</option><option value="med" ${t.prio==="med"?"selected":""}>Wichtig</option><option value="high" ${t.prio==="high"?"selected":""}>Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none" ${t.repeat==="none"?"selected":""}>Einmalig</option><option value="daily" ${t.repeat==="daily"?"selected":""}>Täglich</option><option value="weekly" ${t.repeat==="weekly"?"selected":""}>Wöchentlich</option><option value="monthly" ${t.repeat==="monthly"?"selected":""}>Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder">${[[0,"Keine"],[10,"10 Min vorher"],[30,"30 Min vorher"],[60,"1 Std vorher"],[1440,"1 Tag vorher"]].map(([v,l])=>`<option value="${v}" ${Number(t.remindMinutes||0)===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(t.note||"")}</textarea></div>`})()}`,
 shopEdit:`${(()=>{const s=db.shopping.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Artikel</label><input id="fTitle" value="${esc(s.name||"")}"></div><div><label>Liste</label><select id="fList">${db.shoppingLists.map(l=>`<option value="${l.id}" ${s.listId===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div><div><label>Menge</label><input id="fQty" value="${esc(s.qty||"")}"></div><div><label>Kategorie</label><input id="fCat" value="${esc(s.cat||"")}"></div><div><label>Von</label><select id="fPerson">${db.family.map(p=>`<option ${s.by===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(s.note||"")}</textarea></div>`})()}`,
@@ -2870,12 +2951,22 @@ if(t==="mealEdit"){const m=db.meals.find(x=>x.id===state.modal.editId);if(m){m.t
 if(t==="gift"){
   const recipient=val("fRecipient").trim();
   if(!recipient)return alert("Bitte einen Namen bei „Für wen?“ eingeben.");
-  db.gifts.push({id,title,recipient,occasion:val("fOccasion"),dueDate:val("fDate"),status:val("fGiftStatus")||"idea",buyer:val("fBuyer"),budget:Number(val("fBudget")||0),price:Number(val("fPrice")||0),store:val("fStore"),url:val("fUrl"),note:val("fNote"),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),updatedBy:currentDisplayName()});
+  const file=document.getElementById("fGiftPhoto")?.files?.[0];let photo=null;
+  if(file){try{photo=await uploadGiftPhoto(id,file)}catch(e){return alert("Foto-Upload fehlgeschlagen: "+e.message)}}
+  db.gifts.push({id,title,recipient,occasion:val("fOccasion"),dueDate:val("fDate"),status:val("fGiftStatus")||"idea",priority:val("fPriority")||"normal",buyer:val("fBuyer"),budget:Number(val("fBudget")||0),price:Number(val("fPrice")||0),store:val("fStore"),hidePlace:val("fHidePlace"),url:val("fUrl"),photo,note:val("fNote"),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),updatedBy:currentDisplayName()});
 }
 if(t==="giftEdit"){
   const g=db.gifts.find(x=>x.id===state.modal.editId),recipient=val("fRecipient").trim();
   if(!recipient)return alert("Bitte einen Namen bei „Für wen?“ eingeben.");
-  if(g){g.title=title;g.recipient=recipient;g.occasion=val("fOccasion");g.dueDate=val("fDate");g.status=val("fGiftStatus")||"idea";g.buyer=val("fBuyer");g.budget=Number(val("fBudget")||0);g.price=Number(val("fPrice")||0);g.store=val("fStore");g.url=val("fUrl");g.note=val("fNote");g.updatedAt=new Date().toISOString();g.updatedBy=currentDisplayName();}
+  if(g){
+    const file=document.getElementById("fGiftPhoto")?.files?.[0];
+    if(file){
+      let photo;
+      try{photo=await uploadGiftPhoto(g.id,file)}catch(e){return alert("Foto-Upload fehlgeschlagen: "+e.message)}
+      await deleteGiftPhotoObject(g.photo);g.photo=photo;
+    }
+    g.title=title;g.recipient=recipient;g.occasion=val("fOccasion");g.dueDate=val("fDate");g.status=val("fGiftStatus")||"idea";g.priority=val("fPriority")||"normal";g.buyer=val("fBuyer");g.budget=Number(val("fBudget")||0);g.price=Number(val("fPrice")||0);g.store=val("fStore");g.hidePlace=val("fHidePlace");g.url=val("fUrl");g.note=val("fNote");g.updatedAt=new Date().toISOString();g.updatedBy=currentDisplayName();
+  }
 }
 if(t==="event")addActivity("📅",`hat den Termin „${title}“ erstellt.`,"event",id);
 if(t==="task")addActivity("✓",`hat die Aufgabe „${title}“ erstellt.`,"task",id);
