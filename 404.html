@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v10.5</title>
+<title>FamilienHub v11</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -281,6 +281,50 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .search-section-title{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:13px 0 6px}
 .search-result.action-result{background:#fff7ef}
 .shortcut-note{font-size:10px;color:var(--muted);margin:-3px 0 12px}
+.reno-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.reno-tabs::-webkit-scrollbar{display:none}
+.reno-tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;white-space:nowrap;color:var(--ink)}
+.reno-tab.active{background:#efe1d3;border-color:#dfbea5;font-weight:800}
+.reno-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-bottom:13px}
+.reno-kpi{background:#fffdf9;border:1px solid var(--line);border-radius:16px;padding:12px}
+.reno-kpi b{display:block;font-size:21px}
+.reno-kpi span{font-size:10px;color:var(--muted)}
+.reno-progress{height:8px;background:#eee5dc;border-radius:999px;overflow:hidden;margin-top:7px}
+.reno-progress i{display:block;height:100%;background:#8d9d83}
+.reno-room-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.reno-room{background:#fffdf9;border:1px solid var(--line);border-radius:19px;padding:13px}
+.reno-room-head{display:flex;gap:9px;align-items:flex-start;justify-content:space-between}
+.reno-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid #eee4db}
+.reno-row:first-of-type{border-top:0}
+.reno-prio{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:800}
+.reno-prio.high{background:#f5dfdc;color:#a04e45}
+.reno-prio.med{background:#f8ecd9;color:#936a32}
+.reno-prio.low{background:#e8f1e6;color:#557255}
+.reno-status{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:800}
+.reno-status.open{background:#eee8f6;color:#716582}
+.reno-status.progress{background:#e7eef6;color:#61738a}
+.reno-status.blocked{background:#f5dfdc;color:#a04e45}
+.reno-status.done{background:#e8f1e6;color:#557255}
+.reno-mat.needed{background:#eee8f6;color:#716582}
+.reno-mat.ordered{background:#e7eef6;color:#61738a}
+.reno-mat.delivered{background:#f8ecd9;color:#936a32}
+.reno-mat.installed{background:#e8f1e6;color:#557255}
+.reno-private{display:flex;align-items:flex-start;gap:10px;background:#f7eee8;border:1px solid #e6d4c8;border-radius:15px;padding:11px;margin-bottom:13px}
+.reno-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.reno-actions button{white-space:nowrap}
+.reno-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.reno-filters select{width:auto;min-width:155px}
+.reno-money{font-weight:800;white-space:nowrap}
+.reno-files{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.reno-file{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 8px;font-size:10px}
+.reno-file button{border:0;background:transparent;padding:0;color:#a55b52}
+.reno-offer{background:#fffdf9;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:9px}
+.reno-offer.accepted{border-color:#a8bba2;background:#f8fbf7}
+.reno-decision{background:#fffdf9;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:9px}
+.reno-decision.decided{opacity:.72}
+.reno-blocked-note{background:#f6e4e1;border-radius:10px;padding:7px 9px;font-size:10px;color:#92544d;margin-top:6px}
+@media(max-width:760px){.reno-kpis{grid-template-columns:repeat(2,1fr)}.reno-room-grid{grid-template-columns:1fr}.reno-filters select{width:100%}.reno-actions{flex-direction:column}.reno-actions button{width:100%}}
+
 
 
 
@@ -439,7 +483,7 @@ for(const n of db.notes){
   if(n.pinned===undefined)n.pinned=false;
 }
 
-for(const k of ["routines","school","pantry","trips","documents","familyStatus","gifts"]){
+for(const k of ["routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"]){
   if(!Array.isArray(db[k]))db[k]=[];
 }
 for(const g of db.gifts){
@@ -468,7 +512,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open",giftRecipientFilter:"all",giftOccasionFilter:"all"};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open",giftRecipientFilter:"all",giftOccasionFilter:"all",renovationTab:"overview",renovationRoomFilter:"all",renovationTaskFilter:"open"};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -606,7 +650,7 @@ function passwordResetView(){
   </div>`;
 }
 
-const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity","routines","school","pantry","trips","documents","familyStatus","gifts"];
+const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity","routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"];
 
 function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
 function authHeaders(extra={}){
@@ -864,7 +908,8 @@ async function cloudSignOut(){
   try{if(cloud.accessToken)await fetch(cloud.url.replace(/\/$/,"")+"/auth/v1/logout",{method:"POST",headers:authHeaders()})}catch{}
   cloud.accessToken="";cloud.refreshToken="";cloud.userId="";cloud.email="";cloud.familyId="";cloud.familyName="";cloud.inviteCode="";cloud.enabled=false;
   cloudMembers=[];cloudReservations=[];lastSyncSnapshot=null;
-  if(Array.isArray(db.gifts)){db.gifts=[];localStorage.setItem(KEY,JSON.stringify(db))}
+  for(const c of PARENT_PRIVATE_COLLECTIONS)if(Array.isArray(db[c]))db[c]=[];
+  localStorage.setItem(KEY,JSON.stringify(db));
   saveCloud();render();
 }
 async function cloudCreateFamily(){
@@ -948,15 +993,17 @@ async function bootstrapCloud(){
 
 
 
+const PARENT_PRIVATE_COLLECTIONS=["gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"];
 function syncCollectionsForCurrentRole(){
-  return SYNC_COLLECTIONS.filter(c=>c!=="gifts"||canManageFamily());
+  return SYNC_COLLECTIONS.filter(c=>!PARENT_PRIVATE_COLLECTIONS.includes(c)||canManageFamily());
 }
 function sanitizeParentPrivateData(){
   if(canManageFamily())return;
-  if(Array.isArray(db.gifts)&&db.gifts.length){
-    db.gifts=[];
-    localStorage.setItem(KEY,JSON.stringify(db));
+  let changed=false;
+  for(const c of PARENT_PRIVATE_COLLECTIONS){
+    if(Array.isArray(db[c])&&db[c].length){db[c]=[];changed=true}
   }
+  if(changed)localStorage.setItem(KEY,JSON.stringify(db));
 }
 
 function cleanSyncItem(collection,item){
@@ -1072,7 +1119,7 @@ function autoBackupSnapshot(){
   // Restore points should remain compact and should not duplicate secrets/photos.
   for(const p of (snap.family||[]))p.photo="";
   if(snap.ha)snap.ha={...snap.ha,token:""};
-  delete snap.gifts;
+  for(const c of PARENT_PRIVATE_COLLECTIONS)delete snap[c];
   return snap;
 }
 function restorePoints(){
@@ -1147,7 +1194,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.5</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 const PERSONAL_UI_KEY="familienhub-v10-5-personal-ui";
 const VIEW_META={
@@ -1158,7 +1205,7 @@ const VIEW_META={
   family:["👨‍👩‍👧‍👦","Familie"],meals:["🍲","Essensplan"],home:["🏠","Zuhause"],backup:["💾","Datensicherung"],
   inbox:["📥","Familien-Inbox"],activity:["✨","Aktivität"],dashboard:["⚙️","Startseite"],reminders:["🔔","Erinnerungen"],
   house:["🛠️","Haus & Wartung"],roles:["🔐","Rollen & Rechte"],cloud:["☁️","Synchronisierung"],install:["📱","App installieren"],
-  gifts:["🎁","Geschenke · Eltern"],more:["•••","Mehr"]
+  gifts:["🎁","Geschenke · Eltern"],renovation:["🏗️","Haussanierung"],more:["•••","Mehr"]
 };
 function personalUiIdentity(){
   return cloud?.user?.id||cloud?.userId||currentDisplayName()||"local";
@@ -1175,8 +1222,7 @@ function savePersonalUi(x){
   localStorage.setItem(PERSONAL_UI_KEY,JSON.stringify(all));
 }
 function allowedPersonalView(v){
-  if(v==="gifts"&&!canManageFamily())return false;
-  if(v==="roles"&&!canManageFamily())return false;
+  if(["gifts","renovation","roles"].includes(v)&&!canManageFamily())return false;
   return !!VIEW_META[v];
 }
 function trackRecentView(v){
@@ -1204,8 +1250,7 @@ function recentViewsHTML(){
   return xs.length?`<div class="recent-wrap">${xs.map(v=>{const m=VIEW_META[v]||["•",v];return `<button class="recent-chip" onclick="go('${v}')">${m[0]} ${esc(m[1])}</button>`}).join("")}</div>`:"";
 }
 function go(v){
-  if(v==="gifts"&&!canManageFamily())v="today";
-  if(v==="roles"&&!canManageFamily())v="today";
+  if(["gifts","renovation","roles"].includes(v)&&!canManageFamily())v="today";
   state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;
   trackRecentView(v);render();
 }
@@ -1237,7 +1282,7 @@ function searchQuickActions(q=""){
     {id:"prep",icon:"🌙",title:"Morgen vorbereiten",words:"morgen vorbereiten abend"},
     {id:"week",icon:"🗓️",title:"Unsere Woche",words:"woche wochenplanung"},
     {id:"reminders",icon:"🔔",title:"Erinnerungen",words:"erinnerung erinnern alarm"},
-    ...(canManageFamily()?[{id:"gift",icon:"🎁",title:"Geschenk eintragen",words:"geschenk geschenke idee privat"}]:[])
+    ...(canManageFamily()?[{id:"renoTask",icon:"🏗️",title:"Sanierungsaufgabe",words:"sanierung haussanierung baustelle aufgabe raum handwerker"},{id:"renovation",icon:"🏠",title:"Haussanierung öffnen",words:"sanierung haussanierung haus projekt baustelle"},{id:"gift",icon:"🎁",title:"Geschenk eintragen",words:"geschenk geschenke idee privat"}]:[])
   ];
   if(!n)return all.slice(0,6);
   return all.filter(a=>searchMatches(a.title+" "+a.words,n)).slice(0,6);
@@ -1250,6 +1295,8 @@ function runSearchAction(id){
   if(id==="newNote"){openModal("note");return}
   if(id==="capture"){openModal("capture");return}
   if(id==="gift"&&canManageFamily()){openModal("gift");return}
+  if(id==="renoTask"&&canManageFamily()){openRenovationModal("Task");return}
+  if(id==="renovation"&&canManageFamily()){go("renovation");return}
   if(["prep","week","reminders"].includes(id)){go(id);return}
 }
 function globalSearchResults(q){
@@ -1284,6 +1331,14 @@ function globalSearchResults(q){
     out.push({kind:"document",id:d.id,icon:"📂",title:d.title,meta:`Dokument · ${d.category||""}`});
   if(canManageFamily())for(const g of (db.gifts||[]))if(searchMatches(searchHay(g.title,g.recipient,g.occasion,g.store,g.note,g.buyer,g.hidePlace,g.priority),needle))
     out.push({kind:"gift",id:g.id,icon:"🎁",title:g.title,meta:`Privates Geschenk · ${g.recipient}`});
+  if(canManageFamily()){
+    for(const r of db.renovationRooms)if(searchMatches(searchHay(r.name,r.floor,r.note),needle))out.push({kind:"renovation",id:r.id,icon:"🚪",title:r.name,meta:"Haussanierung · Raum"});
+    for(const t of db.renovationTasks)if(searchMatches(searchHay(t.title,renoRoomName(t.roomId),t.trade,t.note,t.assignedTo,renoContractorName(t.contractorId)),needle))out.push({kind:"renovation",id:t.id,icon:"🏗️",title:t.title,meta:`Sanierungsaufgabe · ${renoRoomName(t.roomId)}`});
+    for(const m of db.renovationMaterials)if(searchMatches(searchHay(m.title,renoRoomName(m.roomId),m.store,m.note),needle))out.push({kind:"renovation",id:m.id,icon:"🛒",title:m.title,meta:`Sanierungsmaterial · ${renoRoomName(m.roomId)}`});
+    for(const c of db.renovationContractors)if(searchMatches(searchHay(c.name,c.trade,c.contact,c.phone,c.email,c.note),needle))out.push({kind:"renovation",id:c.id,icon:"👷",title:c.name,meta:`Handwerker · ${c.trade||""}`});
+    for(const o of db.renovationOffers)if(searchMatches(searchHay(o.title,renoContractorName(o.contractorId),o.trade,renoRoomName(o.roomId),o.note),needle))out.push({kind:"renovation",id:o.id,icon:"📄",title:o.title,meta:`Angebot · ${renoContractorName(o.contractorId)}`});
+    for(const d of db.renovationDecisions)if(searchMatches(searchHay(d.title,renoRoomName(d.roomId),d.options,d.choice,d.note),needle))out.push({kind:"renovation",id:d.id,icon:"💡",title:d.title,meta:`Entscheidung · ${renoRoomName(d.roomId)}`});
+  }
   return out.slice(0,50);
 }
 function updateSearchResults(){
@@ -1317,6 +1372,7 @@ function openSearchResult(kind,id){
   if(kind==="trip"){go("trips");return}
   if(kind==="document"){openDocument(id);return}
   if(kind==="gift"&&canManageFamily()){go("gifts");return}
+  if(kind==="renovation"&&canManageFamily()){go("renovation");return}
 }
 function searchOverlayHTML(){
   return `<div class="modalbg" onclick="if(event.target===this)closeSearch()"><div class="search-sheet">
@@ -1572,7 +1628,8 @@ const DASHBOARD_META={
   inbox:["📥","Familien-Inbox"],
   maintenance:["🛠️","Haus & Wartung"],
   activity:["✨","Familien-Aktivität"],
-  home:["🏠","Zuhause"]
+  home:["🏠","Zuhause"],
+  renovation:["🏗️","Haussanierung"]
 };
 function dashboardCfg(){
   if(!Array.isArray(db.dashboardConfig)||!db.dashboardConfig.length){
@@ -2153,6 +2210,12 @@ function dueReminderItems(){
 }
 
 function dashboardCard(key,ctx){
+  if(key==="renovation"){
+    if(!canManageFamily())return "";
+    const x=renoOverall();
+    const urgent=db.renovationTasks.filter(t=>t.status!=="done").sort((a,b)=>({high:0,med:1,low:2}[a.priority]??2)-({high:0,med:1,low:2}[b.priority]??2)).slice(0,3);
+    return `<section class="card s7"><div class="section-head"><h3>🏗️ Haussanierung</h3><button class="card-link" onclick="go('renovation')">Projekt →</button></div><div class="kpi-grid"><div class="kpi-box"><div class="kpi">${x.pct}%</div><div class="kpi-label">Fortschritt</div></div><div class="kpi-box"><div class="kpi">${x.open}</div><div class="kpi-label">offen</div></div><div class="kpi-box"><div class="kpi">${x.openOffers}</div><div class="kpi-label">Angebote</div></div></div>${urgent.map(t=>`<div class="row"><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${esc(renoRoomName(t.roomId))} · ${renoPriorityLabel(t.priority)}</div></div></div>`).join("")||'<div class="notice success">Aktuell keine offenen Sanierungsaufgaben.</div>'}</section>`;
+  }
   if(key==="cockpit"){
     const xs=familyCockpitData();
     return `<section class="card s7"><div class="section-head"><h3>👨‍👩‍👧‍👦 Familien-Cockpit</h3><button class="card-link" onclick="go('cockpit')">Öffnen →</button></div>${xs.slice(0,4).map(x=>`<div class="row"><div class="grow"><div class="title">${esc(x.p.name)}</div><div class="meta">Heute: 📅 ${x.eventsToday.length} · ✓ ${x.tasksToday.length} · 🎒 ${x.schoolToday.length} · 🔁 ${x.routinesToday.length}${x.overdue?` · <span class="overdue">${x.overdue} überfällig</span>`:""}</div></div>${avatar(x.p.name,true)}</div>`).join("")}</section>`;
@@ -2229,7 +2292,7 @@ function dashboardSettingsView(){
   const c=dashboardCfg();
   return `<div class="section-title"><div><h2>Startseite anpassen</h2><div class="small">Reihenfolge ändern oder Karten ausblenden. Die Einstellung gilt für die Familie.</div></div></div>
   <div class="grid">
-    <section class="card s7"><h3>🧩 Karten</h3>${c.order.map((k,i)=>{const m=DASHBOARD_META[k]||["•",k],hidden=c.hidden.includes(k);return `<div class="dash-row"><div style="font-size:22px">${m[0]}</div><div class="grow"><div class="title">${esc(m[1])}</div></div><button class="visibility ${hidden?"off":""}" onclick="toggleDashboardCard('${k}')">${hidden?"Ausgeblendet":"Sichtbar"}</button><div class="dash-move"><button onclick="moveDashboardCard('${k}',-1)" ${i===0?"disabled":""}>↑</button><button onclick="moveDashboardCard('${k}',1)" ${i===c.order.length-1?"disabled":""}>↓</button></div></div>`}).join("")}</section>
+    <section class="card s7"><h3>🧩 Karten</h3>${c.order.filter(k=>k!=="renovation"||canManageFamily()).map((k,i)=>{const m=DASHBOARD_META[k]||["•",k],hidden=c.hidden.includes(k);return `<div class="dash-row"><div style="font-size:22px">${m[0]}</div><div class="grow"><div class="title">${esc(m[1])}</div></div><button class="visibility ${hidden?"off":""}" onclick="toggleDashboardCard('${k}')">${hidden?"Ausgeblendet":"Sichtbar"}</button><div class="dash-move"><button onclick="moveDashboardCard('${k}',-1)" ${i===0?"disabled":""}>↑</button><button onclick="moveDashboardCard('${k}',1)" ${i===c.order.length-1?"disabled":""}>↓</button></div></div>`}).join("")}</section>
     <section class="card s5"><h3>✏️ Begrüßung</h3><div class="notice">Den großen Text und die Unterzeile kannst du direkt auf der Heute-Seite über „Text anpassen“ ändern.</div><button class="primary" style="margin-top:12px" onclick="go('today')">Zur Startseite</button></section>
   </div>`;
 }
@@ -2414,7 +2477,7 @@ function giftsView(){
   ${groups.map(name=>{const items=xs.filter(g=>(g.recipient||"Ohne Namen")===name),sum=items.reduce((n,g)=>n+(Number(g.price)||0),0);return `<div class="gift-group"><div class="gift-head"><div><div class="title">🎀 ${esc(name)}</div><div class="gift-person-total"><span class="meta">${items.length} Geschenk${items.length===1?"":"e"}</span>${sum?`<span class="meta">${sum.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</span>`:""}</div></div></div>${items.map(g=>`<div class="gift-row">${g.photo?`<img class="gift-photo" data-gift-photo="${g.id}" alt="">`:`<div class="gift-photo-placeholder">🎁</div>`}<div class="grow"><div class="title">${esc(g.title)} <span class="gift-status ${esc(g.status||"idea")}">${esc(giftStatusLabel(g.status))}</span><span class="gift-prio ${esc(g.priority||"normal")}">${esc(giftPriorityLabel(g.priority))}</span></div><div class="meta">${g.occasion?esc(g.occasion):""}${g.dueDate?`${g.occasion?" · ":""}${fmtDate(g.dueDate)}${giftDueText(g)}`:""}${g.store?` · ${esc(g.store)}`:""}${g.buyer?` · besorgt von ${esc(g.buyer)}`:""}</div>${g.hidePlace?`<div class="meta"><span class="gift-hide">🙈 Versteckt: ${esc(g.hidePlace)}</span></div>`:""}${g.note?`<div class="meta note-body-preview">${esc(g.note)}</div>`:""}</div>${g.price?`<div class="gift-price">${Number(g.price).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="gift-actions">${g.url?`<button class="ghost" onclick="window.open('${esc(g.url)}','_blank','noopener')">Link</button>`:""}${g.status!=="given"?`<button class="primary" onclick="nextGiftStatus('${g.id}')">${g.status==="wrapped"?"Verschenkt":g.status==="bought"?"Eingepackt":g.status==="planned"?"Gekauft":"Planen"} →</button>`:""}<button class="ghost" onclick="editGift('${g.id}')">Bearbeiten</button><button class="danger" onclick="deleteGift('${g.id}')">Löschen</button></div></div>`).join("")}</div>`}).join("")||'<div class="notice">Für diesen Filter sind keine Geschenke vorhanden.</div>'}`;
 }
 function moreView(){
-  const xs=[...(canManageFamily()?[["gifts","🎁","Geschenke · Eltern"]]:[]),["cockpit","👨‍👩‍👧‍👦","Familien-Cockpit"],["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],...(canManageFamily()?[["roles","🔐","Rollen & Rechte"]]:[]),["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];
+  const xs=[...(canManageFamily()?[["renovation","🏗️","Haussanierung"],["gifts","🎁","Geschenke · Eltern"]]:[]),["cockpit","👨‍👩‍👧‍👦","Familien-Cockpit"],["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],...(canManageFamily()?[["roles","🔐","Rollen & Rechte"]]:[]),["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];
   return `<div class="section-title"><div><h2>Mehr</h2><div class="small">Mit ★ legst du persönliche Schnellzugriffe für deine Heute-Seite fest.</div></div></div>
   ${(personalUi().recent||[]).filter(allowedPersonalView).length?`<div class="search-section-title">Zuletzt geöffnet</div>${recentViewsHTML()}`:""}
   <div class="grid">${xs.map(x=>`<section class="card s6"><div class="more-row"><div class="grow" onclick="go('${x[0]}')"><h3 style="margin:0">${x[1]} ${x[2]}</h3></div><button class="pin-btn ${isShortcut(x[0])?"active":""}" title="${isShortcut(x[0])?"Aus Schnellzugriff entfernen":"Zum Schnellzugriff hinzufügen"}" onclick="toggleShortcut('${x[0]}')">${isShortcut(x[0])?"★":"☆"}</button></div></section>`).join("")}</div>`;
@@ -2548,7 +2611,7 @@ function quickMenuHTML(){
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('meal')"><b>🍲</b>Gericht</button>
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('routine')"><b>🔁</b>Routine</button>
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('school')"><b>🎒</b>Schule</button>
-    ${canManageFamily()?`<button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('gift')"><b>🎁</b>Geschenk</button>`:""}
+    ${canManageFamily()?`<button class="quick-sheet-btn" onclick="state.quickMenu=false;openRenovationModal('Task')"><b>🏗️</b>Sanierungsaufgabe</button><button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('gift')"><b>🎁</b>Geschenk</button>`:""}
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('capture')"><b>⚡</b>Schnellerfassung</button>
    </div>
  </div></div>`;
@@ -2896,6 +2959,235 @@ function completeMaintenance(id){
  const d=new Date(todayISO()+"T12:00");d.setMonth(d.getMonth()+Number(x.intervalMonths||12));
  x.nextDate=d.toISOString().slice(0,10);addActivity("🛠️",`hat die Wartung „${x.title}“ erledigt.`,"maintenance",x.id);save();render();
 }
+
+const RENOVATION_BUCKET="familienhub-renovation";
+const renovationObjectUrls=new Map();
+
+function renoRoomName(id){return id?db.renovationRooms.find(r=>r.id===id)?.name||"Unbekannter Raum":"Allgemein"}
+function renoContractorName(id){return id?db.renovationContractors.find(x=>x.id===id)?.name||"—":"—"}
+function renoTaskName(id){return id?db.renovationTasks.find(x=>x.id===id)?.title||"—":"—"}
+function renoStatusLabel(s){return ({open:"Offen",progress:"In Arbeit",blocked:"Blockiert",done:"Erledigt"}[s]||"Offen")}
+function renoMaterialStatusLabel(s){return ({needed:"Benötigt",ordered:"Bestellt",delivered:"Geliefert",installed:"Verbaut"}[s]||"Benötigt")}
+function renoOfferStatusLabel(s){return ({requested:"Angefragt",received:"Angebot da",favorite:"Favorit",accepted:"Beauftragt",rejected:"Abgelehnt"}[s]||"Angefragt")}
+function renoDecisionStatusLabel(s){return s==="decided"?"Entschieden":"Offen"}
+function renoPriorityLabel(p){return ({high:"Dringend",med:"Wichtig",low:"Normal"}[p]||"Normal")}
+function renoTaskBlocked(t){const x=t.blockedBy?db.renovationTasks.find(a=>a.id===t.blockedBy):null;return !!(x&&x.status!=="done")}
+function renoEffectiveTaskStatus(t){return t.status==="done"?"done":renoTaskBlocked(t)?"blocked":t.status||"open"}
+function renoRoomProgress(roomId){
+  const xs=db.renovationTasks.filter(t=>t.roomId===roomId),done=xs.filter(t=>t.status==="done").length;
+  return {total:xs.length,done,pct:xs.length?Math.round(done/xs.length*100):0};
+}
+function renoOverall(){
+  const tasks=db.renovationTasks||[],done=tasks.filter(t=>t.status==="done").length;
+  const roomBudgets=db.renovationRooms.reduce((n,r)=>n+(Number(r.budget)||0),0);
+  const actual=db.renovationTasks.reduce((n,t)=>n+(Number(t.actual)||0),0)+db.renovationMaterials.reduce((n,m)=>n+(Number(m.actual)||0),0);
+  const openOffers=db.renovationOffers.filter(o=>["received","favorite"].includes(o.status)).length;
+  return {tasks:tasks.length,open:tasks.length-done,done,pct:tasks.length?Math.round(done/tasks.length*100):0,roomBudgets,actual,openOffers};
+}
+function renoRoomOptions(selected="",general=true){
+  return `${general?`<option value="" ${!selected?"selected":""}>Allgemein / ganzes Haus</option>`:""}${db.renovationRooms.map(r=>`<option value="${r.id}" ${selected===r.id?"selected":""}>${esc(r.name)}${r.floor?` · ${esc(r.floor)}`:""}</option>`).join("")}`;
+}
+function renoContractorOptions(selected=""){
+  return `<option value="">Noch keiner</option>${db.renovationContractors.map(c=>`<option value="${c.id}" ${selected===c.id?"selected":""}>${esc(c.name)}${c.trade?` · ${esc(c.trade)}`:""}</option>`).join("")}`;
+}
+function renoTaskOptions(selected="",selfId=""){
+  return `<option value="">Keine Abhängigkeit</option>${db.renovationTasks.filter(t=>t.id!==selfId&&t.status!=="done").map(t=>`<option value="${t.id}" ${selected===t.id?"selected":""}>${esc(t.title)} · ${esc(renoRoomName(t.roomId))}</option>`).join("")}`;
+}
+async function uploadRenovationFiles(kind,recordId,files){
+  const list=[...(files||[])].slice(0,6);if(!list.length)return [];
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)throw new Error("Bilder/PDFs benötigen die Familien-Synchronisierung mit Supabase.");
+  await ensureFreshSession(false);
+  const out=[];
+  for(const original of list){
+    const p=await prepareMediaFile(original);
+    const objectId=crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2);
+    const path=`${cloud.familyId}/${kind}/${recordId}/${objectId}.${p.ext}`;
+    const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+RENOVATION_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+    const r=await fetch(url,{method:"POST",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken,"Content-Type":p.type,"x-upsert":"false"},body:p.blob});
+    let d={};try{d=await r.json()}catch{}
+    if(!r.ok)throw new Error(d.message||d.error||`${original.name}: Upload fehlgeschlagen (${r.status})`);
+    out.push({id:objectId,name:safeFileName(p.name),type:p.type,path,size:p.blob.size});
+  }
+  return out;
+}
+async function fetchRenovationAttachment(att){
+  if(!att?.path)return "";
+  if(renovationObjectUrls.has(att.path))return renovationObjectUrls.get(att.path);
+  await ensureFreshSession(false);
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/authenticated/"+RENOVATION_BUCKET+"/"+att.path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok)throw new Error("Datei konnte nicht geladen werden.");
+  const blob=await r.blob(),obj=URL.createObjectURL(blob);renovationObjectUrls.set(att.path,obj);return obj;
+}
+async function openRenovationAttachment(path){
+  let att=null;
+  for(const c of ["renovationRooms","renovationTasks","renovationOffers"]){
+    for(const x of db[c]){const a=(x.attachments||[]).find(z=>z.path===path);if(a){att=a;break}}
+    if(att)break;
+  }
+  if(!att)return;
+  try{const url=await fetchRenovationAttachment(att);const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener";a.click()}catch(e){alert(e.message)}
+}
+async function deleteRenovationStorage(path){
+  if(!path||!cloud.enabled)return;
+  await ensureFreshSession(false);
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+RENOVATION_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{method:"DELETE",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok&&r.status!==404)throw new Error("Datei konnte nicht gelöscht werden.");
+  const old=renovationObjectUrls.get(path);if(old){URL.revokeObjectURL(old);renovationObjectUrls.delete(path)}
+}
+function renoFilesHTML(kind,id,atts=[]){
+  return atts.length?`<div class="reno-files">${atts.map(a=>`<span class="reno-file" onclick="openRenovationAttachment('${a.path}')">${(a.type||"").includes("pdf")?"📄":"📷"} ${esc(a.name)} <button title="Entfernen" onclick="event.stopPropagation();removeRenovationAttachment('${kind}','${id}','${a.id}')">✕</button></span>`).join("")}</div>`:"";
+}
+async function removeRenovationAttachment(kind,id,attId){
+  if(!requireParent())return;
+  const map={room:"renovationRooms",task:"renovationTasks",offer:"renovationOffers"},x=db[map[kind]]?.find(v=>v.id===id),a=x?.attachments?.find(v=>v.id===attId);
+  if(!x||!a)return;if(!confirm(`„${a.name}“ entfernen?`))return;
+  try{await deleteRenovationStorage(a.path)}catch(e){return alert(e.message)}
+  x.attachments=(x.attachments||[]).filter(v=>v.id!==attId);save();render();
+}
+function setRenovationTab(tab){state.renovationTab=tab;render()}
+function openRenovationModal(type,id=""){if(!requireParent())return;state.modal={type:"reno"+type,editId:id,values:{}};render()}
+function renoNextTaskStatus(id){
+  if(!requireParent())return;const t=db.renovationTasks.find(x=>x.id===id);if(!t)return;
+  const order=["open","progress","done"],i=Math.max(0,order.indexOf(t.status||"open"));t.status=order[Math.min(order.length-1,i+1)];t.updatedAt=new Date().toISOString();save();render();
+}
+function renoNextMaterialStatus(id){
+  if(!requireParent())return;const m=db.renovationMaterials.find(x=>x.id===id);if(!m)return;
+  const order=["needed","ordered","delivered","installed"],i=Math.max(0,order.indexOf(m.status||"needed"));m.status=order[Math.min(order.length-1,i+1)];m.updatedAt=new Date().toISOString();save();render();
+}
+function renovationTaskToFamilyTask(id){
+  if(!requireParent())return;const r=db.renovationTasks.find(x=>x.id===id);if(!r)return;
+  const title=`Sanierung: ${r.title}`;
+  if(db.tasks.some(t=>!t.done&&t.title.toLowerCase()===title.toLowerCase()))return alert("Diese Aufgabe ist bereits als Familien-Aufgabe vorhanden.");
+  const who=db.family.some(p=>p.name===r.assignedTo)?r.assignedTo:currentDisplayName(),tid="t"+Date.now();
+  db.tasks.push({id:tid,title,due:r.dueDate||todayISO(),time:"18:00",who,prio:r.priority==="high"?"high":r.priority==="med"?"med":"low",repeat:"none",remindMinutes:1440,note:`Haussanierung · ${renoRoomName(r.roomId)}${r.trade?` · ${r.trade}`:""}`,done:false,completedAt:null,comments:[]});
+  save();render();alert("Als normale Familien-Aufgabe angelegt.");
+}
+function renovationMaterialToShopping(id){
+  if(!requireParent())return;const m=db.renovationMaterials.find(x=>x.id===id);if(!m)return;
+  const listId=state.shopList||db.shoppingLists.find(l=>l.name.toLowerCase().includes("baumarkt"))?.id||db.shoppingLists[0]?.id;
+  if(!listId)return alert("Bitte zuerst eine Einkaufsliste anlegen.");
+  if(db.shopping.some(s=>s.listId===listId&&!s.done&&s.name.trim().toLowerCase()===m.title.trim().toLowerCase()))return alert("Steht bereits auf der Einkaufsliste.");
+  db.shopping.push({id:"s"+Date.now(),listId,name:m.title,qty:m.qty||"1×",cat:"Haussanierung",by:currentDisplayName(),note:`${renoRoomName(m.roomId)}${m.store?` · ${m.store}`:""}`,done:false,comments:[]});
+  m.pushedToShopping=true;save();render();
+}
+async function deleteRenovationRecord(collection,id){
+  if(!requireParent())return;const x=db[collection]?.find(v=>v.id===id);if(!x)return;
+  if(!confirm(`„${x.title||x.name}“ wirklich löschen?`))return;
+  for(const a of (x.attachments||[])){try{await deleteRenovationStorage(a.path)}catch(e){}}
+  db[collection]=db[collection].filter(v=>v.id!==id);
+  if(collection==="renovationRooms"){
+    for(const t of db.renovationTasks)if(t.roomId===id)t.roomId="";
+    for(const m of db.renovationMaterials)if(m.roomId===id)m.roomId="";
+    for(const o of db.renovationOffers)if(o.roomId===id)o.roomId="";
+    for(const d of db.renovationDecisions)if(d.roomId===id)d.roomId="";
+  }
+  if(collection==="renovationContractors"){
+    for(const t of db.renovationTasks)if(t.contractorId===id)t.contractorId="";
+    for(const o of db.renovationOffers)if(o.contractorId===id)o.contractorId="";
+  }
+  if(collection==="renovationTasks"){
+    for(const t of db.renovationTasks)if(t.blockedBy===id)t.blockedBy="";
+    for(const o of db.renovationOffers)if(o.taskId===id)o.taskId="";
+  }
+  save();render();
+}
+function renovationOverview(){
+  const x=renoOverall(),open=db.renovationTasks.filter(t=>t.status!=="done").sort((a,b)=>{
+    const pr={high:0,med:1,low:2};return (pr[a.priority]??2)-(pr[b.priority]??2)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"));
+  }).slice(0,7);
+  return `<div class="reno-kpis"><div class="reno-kpi"><b>${x.pct}%</b><span>Aufgaben erledigt</span></div><div class="reno-kpi"><b>${x.open}</b><span>offene Aufgaben</span></div><div class="reno-kpi"><b>${db.renovationRooms.length}</b><span>Räume</span></div><div class="reno-kpi"><b>${x.roomBudgets.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>Raumbudget</span></div><div class="reno-kpi"><b>${x.actual.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>erfasste Ist-Kosten</span></div></div>
+  <div class="grid"><section class="card s7"><div class="section-head"><h3>🚧 Als Nächstes</h3><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div>${open.map(t=>renoTaskRow(t)).join("")||'<div class="notice success">Alle Sanierungsaufgaben erledigt.</div>'}</section><section class="card s5"><div class="section-head"><h3>🏠 Räume</h3><button class="ghost" onclick="setRenovationTab('rooms')">Alle →</button></div>${db.renovationRooms.slice(0,6).map(r=>{const p=renoRoomProgress(r.id);return `<div class="row"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${p.done}/${p.total} Aufgaben${r.budget?` · ${Number(r.budget).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}`:""}</div><div class="reno-progress"><i style="width:${p.pct}%"></i></div></div></div>`}).join("")||'<div class="notice">Noch keine Räume angelegt.</div>'}</section></div>`;
+}
+function renoTaskRow(t){
+  const st=renoEffectiveTaskStatus(t),blocked=renoTaskBlocked(t),contractor=t.contractorRequired?"👷 Handwerker nötig":"🔧 Eigenleistung";
+  return `<div class="reno-row"><div class="grow"><div class="title">${esc(t.title)} <span class="reno-prio ${t.priority||"low"}">${renoPriorityLabel(t.priority)}</span> <span class="reno-status ${st}">${renoStatusLabel(st)}</span></div><div class="meta">${esc(renoRoomName(t.roomId))}${t.trade?` · ${esc(t.trade)}`:""} · ${contractor}${t.assignedTo?` · ${esc(t.assignedTo)}`:""}${t.dueDate?` · ${fmtDate(t.dueDate)}`:""}</div>${blocked?`<div class="reno-blocked-note">⛔ Wartet auf: ${esc(renoTaskName(t.blockedBy))}</div>`:""}${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}${renoFilesHTML("task",t.id,t.attachments||[])}</div>${t.actual?`<div class="reno-money">${Number(t.actual).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="reno-actions">${st!=="blocked"&&t.status!=="done"?`<button class="primary" onclick="renoNextTaskStatus('${t.id}')">${t.status==="progress"?"Erledigt":"Starten"} →</button>`:""}<button class="ghost" onclick="renovationTaskToFamilyTask('${t.id}')">→ Familien-Aufgabe</button><button class="ghost" onclick="openRenovationModal('TaskEdit','${t.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationTasks','${t.id}')">Löschen</button></div></div>`;
+}
+function renovationTasksView(){
+  let xs=[...db.renovationTasks];
+  if(state.renovationTaskFilter==="open")xs=xs.filter(t=>t.status!=="done");
+  if(state.renovationTaskFilter==="blocked")xs=xs.filter(renoTaskBlocked);
+  if(state.renovationTaskFilter==="done")xs=xs.filter(t=>t.status==="done");
+  if(state.renovationRoomFilter==="general")xs=xs.filter(t=>!t.roomId);
+  else if(state.renovationRoomFilter!=="all")xs=xs.filter(t=>t.roomId===state.renovationRoomFilter);
+  xs.sort((a,b)=>{const pr={high:0,med:1,low:2};return (pr[a.priority]??2)-(pr[b.priority]??2)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))});
+  return `<div class="section-head"><div><h3>✓ Sanierungsaufgaben</h3><div class="meta">Allgemeine Aufgaben und Aufgaben pro Raum in einer Liste.</div></div><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div><div class="reno-filters"><select onchange="state.renovationRoomFilter=this.value;render()"><option value="all">Alle Bereiche</option><option value="general" ${state.renovationRoomFilter==="general"?"selected":""}>Allgemein / ganzes Haus</option>${db.renovationRooms.map(r=>`<option value="${r.id}" ${state.renovationRoomFilter===r.id?"selected":""}>${esc(r.name)}</option>`).join("")}</select><select onchange="state.renovationTaskFilter=this.value;render()"><option value="open" ${state.renovationTaskFilter==="open"?"selected":""}>Offen</option><option value="blocked" ${state.renovationTaskFilter==="blocked"?"selected":""}>Blockiert</option><option value="done" ${state.renovationTaskFilter==="done"?"selected":""}>Erledigt</option><option value="all" ${state.renovationTaskFilter==="all"?"selected":""}>Alle</option></select></div><section class="card s12">${xs.map(renoTaskRow).join("")||'<div class="notice">Keine Aufgaben für diesen Filter.</div>'}</section>`;
+}
+function renovationRoomsView(){
+  return `<div class="section-head"><div><h3>🚪 Räume & Bereiche</h3><div class="meta">Fortschritt, Budget, Notizen und Baustellenbilder pro Raum.</div></div><button class="primary" onclick="openRenovationModal('Room')">+ Raum</button></div><div class="reno-room-grid">${db.renovationRooms.map(r=>{const p=renoRoomProgress(r.id);return `<div class="reno-room"><div class="reno-room-head"><div><div class="title">${esc(r.name)}</div><div class="meta">${esc(r.floor||"")}${r.budget?`${r.floor?" · ":""}Budget ${Number(r.budget).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}`:""}</div></div><div class="reno-actions"><button class="ghost" onclick="openRenovationModal('TaskForRoom','${r.id}')">+ Aufgabe</button><button class="ghost" onclick="openRenovationModal('RoomEdit','${r.id}')">Bearbeiten</button></div></div><div class="reno-progress"><i style="width:${p.pct}%"></i></div><div class="meta" style="margin-top:5px">${p.done}/${p.total} Aufgaben erledigt · ${p.pct}%</div>${r.note?`<div class="meta note-body-preview" style="margin-top:7px">${esc(r.note)}</div>`:""}${renoFilesHTML("room",r.id,r.attachments||[])}<div class="toolbar" style="margin-top:9px"><button class="danger" onclick="deleteRenovationRecord('renovationRooms','${r.id}')">Raum löschen</button></div></div>`}).join("")||'<div class="notice">Lege zuerst eure Räume an, z. B. Küche, Bad, Wohnzimmer, Flur oder Technik.</div>'}</div>`;
+}
+function renovationMaterialsView(){
+  const xs=[...db.renovationMaterials].sort((a,b)=>String(a.status).localeCompare(String(b.status))||String(a.roomId).localeCompare(String(b.roomId)));
+  return `<div class="section-head"><div><h3>🛒 Material & Einkauf</h3><div class="meta">Von „benötigt“ bis „verbaut“ – plus Übergabe an die normale Einkaufsliste.</div></div><button class="primary" onclick="openRenovationModal('Material')">+ Material</button></div><section class="card s12">${xs.map(m=>`<div class="reno-row"><div class="grow"><div class="title">${esc(m.title)} <span class="reno-status reno-mat ${m.status||"needed"}">${renoMaterialStatusLabel(m.status)}</span></div><div class="meta">${esc(m.qty||"")}${m.roomId?` · ${esc(renoRoomName(m.roomId))}`:" · Allgemein"}${m.store?` · ${esc(m.store)}`:""}</div>${m.note?`<div class="meta">${esc(m.note)}</div>`:""}</div>${m.actual?`<div class="reno-money">${Number(m.actual).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="reno-actions">${m.status!=="installed"?`<button class="primary" onclick="renoNextMaterialStatus('${m.id}')">${m.status==="delivered"?"Verbaut":m.status==="ordered"?"Geliefert":"Bestellt"} →</button>`:""}${!m.pushedToShopping?`<button class="ghost" onclick="renovationMaterialToShopping('${m.id}')">🛒 Einkauf</button>`:'<span class="plan-chip">auf Einkaufsliste</span>'}<button class="ghost" onclick="openRenovationModal('MaterialEdit','${m.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationMaterials','${m.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch kein Material erfasst.</div>'}</section>`;
+}
+function renovationContractorsView(){
+  const contractors=[...db.renovationContractors].sort((a,b)=>String(a.trade||"").localeCompare(String(b.trade||""))||a.name.localeCompare(b.name,"de"));
+  const offers=[...db.renovationOffers].sort((a,b)=>String(a.status==="accepted"?0:a.status==="favorite"?1:a.status==="received"?2:3).localeCompare("0")||String(a.amount||0).localeCompare(String(b.amount||0)));
+  return `<div class="grid"><section class="card s5"><div class="section-head"><div><h3>👷 Handwerker</h3><div class="meta">Firmen, Gewerke und Kontakte.</div></div><button class="primary" onclick="openRenovationModal('Contractor')">+ Handwerker</button></div>${contractors.map(c=>`<div class="reno-row"><div class="grow"><div class="title">${esc(c.name)}</div><div class="meta">${esc(c.trade||"")}${c.contact?` · ${esc(c.contact)}`:""}${c.phone?` · ${esc(c.phone)}`:""}${c.email?` · ${esc(c.email)}`:""}</div>${c.note?`<div class="meta">${esc(c.note)}</div>`:""}</div><div class="reno-actions"><button class="ghost" onclick="openRenovationModal('ContractorEdit','${c.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationContractors','${c.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Handwerker gespeichert.</div>'}</section><section class="card s7"><div class="section-head"><div><h3>📄 Angebote</h3><div class="meta">Anfragen und Angebote direkt vergleichen.</div></div><button class="primary" onclick="openRenovationModal('Offer')">+ Angebot</button></div>${offers.map(o=>`<div class="reno-offer ${o.status==="accepted"?"accepted":""}"><div class="section-head"><div><div class="title">${esc(o.title)}</div><div class="meta">${esc(renoContractorName(o.contractorId))}${o.trade?` · ${esc(o.trade)}`:""}${o.roomId?` · ${esc(renoRoomName(o.roomId))}`:""}${o.taskId?` · ${esc(renoTaskName(o.taskId))}`:""}</div></div><div class="reno-money">${Number(o.amount||0).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div></div><div class="meta"><span class="reno-status ${o.status==="accepted"?"done":"progress"}">${renoOfferStatusLabel(o.status)}</span>${o.date?` · ${fmtDate(o.date)}`:""}${o.validUntil?` · gültig bis ${fmtDate(o.validUntil)}`:""}</div>${o.note?`<div class="meta" style="margin-top:7px">${esc(o.note)}</div>`:""}${renoFilesHTML("offer",o.id,o.attachments||[])}<div class="reno-actions" style="margin-top:8px"><button class="ghost" onclick="openRenovationModal('OfferEdit','${o.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationOffers','${o.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Angebote hinterlegt.</div>'}</section></div>`;
+}
+function renovationDecisionsView(){
+  const xs=[...db.renovationDecisions].sort((a,b)=>(a.status==="decided")-(b.status==="decided")||String(a.deadline||"9999").localeCompare(String(b.deadline||"9999")));
+  return `<div class="section-head"><div><h3>💡 Entscheidungen</h3><div class="meta">Fliesen, Schalterserie, Farbe, Boden, Armaturen – offene Entscheidungen verschwinden nicht mehr in Chats.</div></div><button class="primary" onclick="openRenovationModal('Decision')">+ Entscheidung</button></div>${xs.map(d=>`<div class="reno-decision ${d.status==="decided"?"decided":""}"><div class="section-head"><div><div class="title">${esc(d.title)} <span class="reno-status ${d.status==="decided"?"done":"open"}">${renoDecisionStatusLabel(d.status)}</span></div><div class="meta">${esc(renoRoomName(d.roomId))}${d.deadline?` · bis ${fmtDate(d.deadline)}`:""}</div></div></div>${d.options?`<div class="meta"><b>Optionen:</b> ${esc(d.options)}</div>`:""}${d.choice?`<div class="notice success" style="margin-top:7px"><b>Entscheidung:</b> ${esc(d.choice)}</div>`:""}${d.note?`<div class="meta" style="margin-top:7px">${esc(d.note)}</div>`:""}<div class="reno-actions" style="margin-top:8px"><button class="ghost" onclick="openRenovationModal('DecisionEdit','${d.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationDecisions','${d.id}')">Löschen</button></div></div>`).join("")||'<div class="notice">Noch keine Entscheidungen erfasst.</div>'}`;
+}
+function renovationView(){
+  if(!canManageFamily())return `<div></div>`;
+  const tabs=[["overview","Übersicht"],["tasks","Aufgaben"],["rooms","Räume"],["materials","Material"],["contractors","Handwerker & Angebote"],["decisions","Entscheidungen"]];
+  let body=renovationOverview();
+  if(state.renovationTab==="tasks")body=renovationTasksView();
+  if(state.renovationTab==="rooms")body=renovationRoomsView();
+  if(state.renovationTab==="materials")body=renovationMaterialsView();
+  if(state.renovationTab==="contractors")body=renovationContractorsView();
+  if(state.renovationTab==="decisions")body=renovationDecisionsView();
+  return `<div class="section-title"><div><h2>🏗️ Haussanierung</h2><div class="small">Projektzentrale für Aufgaben, Räume, Material, Handwerker, Angebote und Entscheidungen.</div></div><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div><div class="reno-private"><span style="font-size:22px">🔒</span><div><b>Elternbereich</b><div class="meta">Budget, Angebote und Baustellenunterlagen bleiben nur bei Eltern. Einzelne Sanierungsaufgaben kannst du bei Bedarf als normale Familien-Aufgabe weitergeben.</div></div></div><div class="reno-tabs">${tabs.map(([v,l])=>`<button class="reno-tab ${state.renovationTab===v?"active":""}" onclick="setRenovationTab('${v}')">${l}</button>`).join("")}</div>${body}`;
+}
+
+function renovationModalHTML(){
+  const t=state.modal.type,id=state.modal.editId||"";
+  const edit=t.endsWith("Edit"),base=t.replace(/^reno/,"").replace(/Edit$/,"");
+  let x=null;
+  const maps={Room:"renovationRooms",Task:"renovationTasks",Material:"renovationMaterials",Contractor:"renovationContractors",Offer:"renovationOffers",Decision:"renovationDecisions"};
+  if(edit)x=db[maps[base]]?.find(v=>v.id===id)||{};
+  if(base==="TaskForRoom"){x={roomId:id};}
+  const v=x||{};
+  let form="";
+  if(["Room"].includes(base))form=`<div class="full"><label>Raum / Bereich</label><input id="rTitle" value="${esc(v.name||"")}" placeholder="z. B. Küche"></div><div><label>Etage</label><input id="rFloor" value="${esc(v.floor||"")}" placeholder="EG, DG, Keller …"></div><div><label>Budget €</label><input id="rBudget" type="number" min="0" step="0.01" value="${Number(v.budget||0)||""}"></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div><div class="full media-picker"><label>📷 Bilder / PDFs ${edit?"ergänzen":"hinzufügen"}</label><input id="rFiles" type="file" multiple accept="image/*,application/pdf"><div class="media-help">Bis zu 6 Dateien pro Speichervorgang.</div></div>`;
+  if(["Task","TaskForRoom"].includes(base))form=`<div class="full"><label>Aufgabe</label><input id="rTitle" value="${esc(v.title||"")}"></div><div><label>Bereich</label><select id="rRoom">${renoRoomOptions(v.roomId||"")}</select></div><div><label>Status</label><select id="rStatus">${[["open","Offen"],["progress","In Arbeit"],["blocked","Blockiert"],["done","Erledigt"]].map(([a,b])=>`<option value="${a}" ${(v.status||"open")===a?"selected":""}>${b}</option>`).join("")}</select></div><div><label>Priorität</label><select id="rPriority">${[["high","Dringend"],["med","Wichtig"],["low","Normal"]].map(([a,b])=>`<option value="${a}" ${(v.priority||"med")===a?"selected":""}>${b}</option>`).join("")}</select></div><div><label>Gewerk</label><input id="rTrade" value="${esc(v.trade||"")}" placeholder="Elektro, Sanitär, Trockenbau …"></div><div><label>Fällig</label><input id="rDate" type="date" value="${esc(v.dueDate||"")}"></div><div><label>Zuständig</label><select id="rPerson"><option value="">Noch offen</option>${db.family.map(p=>`<option ${v.assignedTo===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Handwerker nötig?</label><select id="rContractorRequired"><option value="0" ${!v.contractorRequired?"selected":""}>Nein / Eigenleistung</option><option value="1" ${v.contractorRequired?"selected":""}>Ja</option></select></div><div><label>Handwerker</label><select id="rContractor">${renoContractorOptions(v.contractorId||"")}</select></div><div><label>Blockiert durch</label><select id="rBlockedBy">${renoTaskOptions(v.blockedBy||"",v.id||"")}</select></div><div><label>Budget €</label><input id="rBudget" type="number" min="0" step="0.01" value="${Number(v.budget||0)||""}"></div><div><label>Ist-Kosten €</label><input id="rActual" type="number" min="0" step="0.01" value="${Number(v.actual||0)||""}"></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div><div class="full media-picker"><label>📷 Bilder / PDFs ${edit?"ergänzen":"hinzufügen"}</label><input id="rFiles" type="file" multiple accept="image/*,application/pdf"></div>`;
+  if(base==="Material")form=`<div class="full"><label>Material / Artikel</label><input id="rTitle" value="${esc(v.title||"")}"></div><div><label>Raum</label><select id="rRoom">${renoRoomOptions(v.roomId||"")}</select></div><div><label>Menge</label><input id="rQty" value="${esc(v.qty||"")}"></div><div><label>Status</label><select id="rMatStatus">${[["needed","Benötigt"],["ordered","Bestellt"],["delivered","Geliefert"],["installed","Verbaut"]].map(([a,b])=>`<option value="${a}" ${(v.status||"needed")===a?"selected":""}>${b}</option>`).join("")}</select></div><div><label>Priorität</label><select id="rPriority">${[["high","Dringend"],["med","Wichtig"],["low","Normal"]].map(([a,b])=>`<option value="${a}" ${(v.priority||"med")===a?"selected":""}>${b}</option>`).join("")}</select></div><div><label>Geschäft / Lieferant</label><input id="rStore" value="${esc(v.store||"")}"></div><div><label>Budget €</label><input id="rBudget" type="number" min="0" step="0.01" value="${Number(v.budget||0)||""}"></div><div><label>Ist-Kosten €</label><input id="rActual" type="number" min="0" step="0.01" value="${Number(v.actual||0)||""}"></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div>`;
+  if(base==="Contractor")form=`<div class="full"><label>Firma / Handwerker</label><input id="rTitle" value="${esc(v.name||"")}"></div><div><label>Gewerk</label><input id="rTrade" value="${esc(v.trade||"")}"></div><div><label>Ansprechpartner</label><input id="rContact" value="${esc(v.contact||"")}"></div><div><label>Telefon</label><input id="rPhone" type="tel" value="${esc(v.phone||"")}"></div><div><label>E-Mail</label><input id="rEmail" type="email" value="${esc(v.email||"")}"></div><div><label>Status</label><select id="rContractorStatus">${[["candidate","Kandidat"],["contacted","Kontaktiert"],["commissioned","Beauftragt"],["done","Abgeschlossen"]].map(([a,b])=>`<option value="${a}" ${(v.status||"candidate")===a?"selected":""}>${b}</option>`).join("")}</select></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div>`;
+  if(base==="Offer")form=`<div class="full"><label>Angebot / Titel</label><input id="rTitle" value="${esc(v.title||"")}" placeholder="z. B. Elektro Rohinstallation"></div><div><label>Handwerker</label><select id="rContractor">${renoContractorOptions(v.contractorId||"")}</select></div><div><label>Gewerk</label><input id="rTrade" value="${esc(v.trade||"")}"></div><div><label>Raum / Bereich</label><select id="rRoom">${renoRoomOptions(v.roomId||"")}</select></div><div><label>Aufgabe optional</label><select id="rTask"><option value="">Keine Verknüpfung</option>${db.renovationTasks.map(t=>`<option value="${t.id}" ${v.taskId===t.id?"selected":""}>${esc(t.title)}</option>`).join("")}</select></div><div><label>Betrag €</label><input id="rAmount" type="number" min="0" step="0.01" value="${Number(v.amount||0)||""}"></div><div><label>Status</label><select id="rOfferStatus">${[["requested","Angefragt"],["received","Angebot da"],["favorite","Favorit"],["accepted","Beauftragt"],["rejected","Abgelehnt"]].map(([a,b])=>`<option value="${a}" ${(v.status||"received")===a?"selected":""}>${b}</option>`).join("")}</select></div><div><label>Datum</label><input id="rDate" type="date" value="${esc(v.date||todayISO())}"></div><div><label>Gültig bis</label><input id="rValidUntil" type="date" value="${esc(v.validUntil||"")}"></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div><div class="full media-picker"><label>📄 Angebot / Bilder ${edit?"ergänzen":"anhängen"}</label><input id="rFiles" type="file" multiple accept="image/*,application/pdf"></div>`;
+  if(base==="Decision")form=`<div class="full"><label>Entscheidung</label><input id="rTitle" value="${esc(v.title||"")}" placeholder="z. B. Schalterserie auswählen"></div><div><label>Raum / Bereich</label><select id="rRoom">${renoRoomOptions(v.roomId||"")}</select></div><div><label>Status</label><select id="rDecisionStatus"><option value="open" ${(v.status||"open")==="open"?"selected":""}>Offen</option><option value="decided" ${v.status==="decided"?"selected":""}>Entschieden</option></select></div><div><label>Entscheidung bis</label><input id="rDate" type="date" value="${esc(v.deadline||"")}"></div><div class="full"><label>Optionen</label><textarea id="rOptions" placeholder="z. B. Balance SI / Future Linear / ...">${esc(v.options||"")}</textarea></div><div class="full"><label>Gewählt</label><input id="rChoice" value="${esc(v.choice||"")}"></div><div class="full"><label>Notiz</label><textarea id="rNote">${esc(v.note||"")}</textarea></div>`;
+  const titleMap={Room:"Raum",Task:"Sanierungsaufgabe",TaskForRoom:"Sanierungsaufgabe",Material:"Material",Contractor:"Handwerker",Offer:"Angebot",Decision:"Entscheidung"};
+  return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="section-head"><div><div class="detail-title">${edit?"Bearbeiten":titleMap[base]||"Haussanierung"}</div><div class="meta">🏗️ Haussanierung · nur Eltern</div></div><button class="ghost" onclick="closeModal()">Schließen</button></div><div class="form">${form}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveRenovationModal('${t}')">Speichern</button></div></div></div>`;
+}
+async function saveRenovationModal(t){
+  if(!requireParent())return;
+  const edit=t.endsWith("Edit"),base=t.replace(/^reno/,"").replace(/Edit$/,""),id=state.modal.editId||("r"+Date.now()+"-"+Math.random().toString(36).slice(2,6));
+  const title=val("rTitle");if(!title)return alert("Bitte einen Titel eingeben.");
+  let x=null;
+  const maps={Room:"renovationRooms",Task:"renovationTasks",Material:"renovationMaterials",Contractor:"renovationContractors",Offer:"renovationOffers",Decision:"renovationDecisions"};
+  const mapBase=base==="TaskForRoom"?"Task":base,collection=maps[mapBase];
+  if(edit)x=db[collection].find(v=>v.id===id);
+  if(!x){x={id};db[collection].push(x)}
+  if(mapBase==="Room"){
+    x.name=title;x.floor=val("rFloor");x.budget=Number(val("rBudget")||0);x.note=val("rNote");if(!Array.isArray(x.attachments))x.attachments=[];
+    const files=document.getElementById("rFiles")?.files;if(files?.length){try{x.attachments.push(...await uploadRenovationFiles("room",x.id,files))}catch(e){return alert(e.message)}}
+  }
+  if(mapBase==="Task"){
+    x.title=title;x.roomId=val("rRoom");x.status=val("rStatus")||"open";x.priority=val("rPriority")||"med";x.trade=val("rTrade");x.dueDate=val("rDate");x.assignedTo=val("rPerson");x.contractorRequired=val("rContractorRequired")==="1";x.contractorId=val("rContractor");x.blockedBy=val("rBlockedBy");x.budget=Number(val("rBudget")||0);x.actual=Number(val("rActual")||0);x.note=val("rNote");if(!Array.isArray(x.attachments))x.attachments=[];
+    const files=document.getElementById("rFiles")?.files;if(files?.length){try{x.attachments.push(...await uploadRenovationFiles("task",x.id,files))}catch(e){return alert(e.message)}}
+  }
+  if(mapBase==="Material"){x.title=title;x.roomId=val("rRoom");x.qty=val("rQty");x.status=val("rMatStatus")||"needed";x.priority=val("rPriority")||"med";x.store=val("rStore");x.budget=Number(val("rBudget")||0);x.actual=Number(val("rActual")||0);x.note=val("rNote");if(x.pushedToShopping===undefined)x.pushedToShopping=false}
+  if(mapBase==="Contractor"){x.name=title;x.trade=val("rTrade");x.contact=val("rContact");x.phone=val("rPhone");x.email=val("rEmail");x.status=val("rContractorStatus")||"candidate";x.note=val("rNote")}
+  if(mapBase==="Offer"){
+    x.title=title;x.contractorId=val("rContractor");x.trade=val("rTrade");x.roomId=val("rRoom");x.taskId=val("rTask");x.amount=Number(val("rAmount")||0);x.status=val("rOfferStatus")||"received";x.date=val("rDate");x.validUntil=val("rValidUntil");x.note=val("rNote");if(!Array.isArray(x.attachments))x.attachments=[];
+    const files=document.getElementById("rFiles")?.files;if(files?.length){try{x.attachments.push(...await uploadRenovationFiles("offer",x.id,files))}catch(e){return alert(e.message)}}
+  }
+  if(mapBase==="Decision"){x.title=title;x.roomId=val("rRoom");x.status=val("rDecisionStatus")||"open";x.deadline=val("rDate");x.options=val("rOptions");x.choice=val("rChoice");x.note=val("rNote")}
+  x.updatedAt=new Date().toISOString();if(!x.createdAt)x.createdAt=x.updatedAt;
+  state.modal=null;save();render();
+}
+
 function houseView(){
  const parent=canManageFamily();
  const due=db.houseMaintenance.filter(x=>maintenanceDays(x)<=30).length;
@@ -2953,7 +3245,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.5 ergänzt persönliche Schnellzugriffe, zuletzt geöffnete Bereiche und eine deutlich schnellere globale Suche.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11 ergänzt eine private Sanierungszentrale mit Räumen, Aufgaben, Material, Handwerkern, Angeboten, Bildern/PDFs, Entscheidungen und Budget.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
@@ -2990,7 +3282,7 @@ function renderCrash(err){
 function render(){
  try{
    captureModalDraft();
-   const m={today:todayView,gifts:giftsView,cockpit:familyCockpitView,myday:myDayView,prep:prepView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+   const m={today:todayView,renovation:renovationView,gifts:giftsView,cockpit:familyCockpitView,myday:myDayView,prep:prepView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
    document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
    restoreModalDraft();
    checkReminders();
@@ -3008,7 +3300,7 @@ function toggleTask(id){if(!requireGeneralEdit())return;const t=db.tasks.find(x=
 function openModal(t){state.modal={type:t,values:{}};render()}function closeModal(){state.modal=null;render()}
 function peopleOptions(){return db.family.map(p=>`<option>${esc(p.name)}</option>`).join("")}
 function listOptions(){return db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}
-function modalHTML(){const t=state.modal.type, f={
+function modalHTML(){const t=state.modal.type;if(t.startsWith("reno"))return renovationModalHTML();const f={
 hero:`<div class="full"><label>Großer Text</label><input id="fHeroTitle" value="${esc(dashboardCfg().heroTitle)}"></div><div class="full"><label>Unterzeile</label><input id="fHeroSubtitle" value="${esc(dashboardCfg().heroSubtitle)}"></div>`,
 event:`<div class="full"><label>Titel</label><input id="fTitle"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Kalender</label><select id="fCalendar"><option value="family">♥ Familienkalender</option>${db.family.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div><div><label>Ort</label><input id="fPlace"></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option><option value="10080">1 Woche vorher</option></select></div><div class="full"><label>Notiz optional</label><textarea id="fNote" placeholder="Weitere Infos zum Termin …"></textarea></div>`,
 task:`<div class="full"><label>Aufgabe</label><input id="fTitle"></div><div><label>Fällig</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Priorität</label><select id="fPrio"><option value="low">Normal</option><option value="med">Wichtig</option><option value="high">Dringend</option></select></div><div><label>Wiederholung</label><select id="fRepeat"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option></select></div><div><label>Erinnerung</label><select id="fReminder"><option value="0">Keine</option><option value="10">10 Min vorher</option><option value="30">30 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div><div class="full"><label>Notiz optional</label><textarea id="fNote" placeholder="Details zur Aufgabe …"></textarea></div>`,
