@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v9.1.1</title>
+<title>FamilienHub v10</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -172,6 +172,29 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .school-kind{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:10px;background:#e9eef6;color:#60718b}
 .myday-person{display:flex;align-items:center;gap:9px;margin-bottom:10px}
 @media(max-width:620px){.status-grid{grid-template-columns:1fr}.capture-choice{grid-template-columns:1fr 1fr}}
+.sync-mini{width:34px;height:34px;border:1px solid var(--line);border-radius:12px;background:#fffaf6;color:#9d8b7e;display:grid;place-items:center;font-size:17px}
+.sync-mini.ok{color:#648064;background:#edf4eb}
+.sync-mini.warn{color:#a47339;background:#fbf2df}
+.sync-mini.off{color:#9a8b81}
+.person-pills{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 14px}
+.person-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;color:var(--ink)}
+.person-pill.active{background:#f0e2d6;border-color:#dfc2ad;font-weight:800}
+.rotation-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:7px}
+.rotation-person{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff}
+.rotation-person input{width:18px;height:18px}
+.shopping-tools{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 12px}
+.frequent-grid{display:flex;gap:7px;flex-wrap:wrap}
+.frequent-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;color:var(--ink)}
+.reminder-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.reminder-actions button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 8px;font-size:10px;color:var(--ink)}
+.backup-point{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #eee2d8}
+.backup-point:first-child{border-top:0}
+.crash-box{max-width:720px;margin:40px auto;padding:22px;background:#fffaf5;border:1px solid #e5d5c8;border-radius:24px;box-shadow:0 12px 38px #0001}
+.crash-code{white-space:pre-wrap;word-break:break-word;background:#f3eae3;border-radius:12px;padding:10px;font-size:11px;margin:12px 0;color:#775f53}
+.smart-capture-suggest{margin-top:10px;padding:11px;border-radius:14px;background:#edf4eb;color:#50684f}
+.small-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-top:7px}
+@media(max-width:620px){.rotation-list{grid-template-columns:1fr}}
+
 .undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:90;width:min(520px,calc(100% - 28px));background:#3d342f;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 16px 40px #0004}
 .undo-toast .grow{font-size:13px}
 .undo-toast button{border:0;border-radius:11px;background:#fff;color:#3d342f;padding:8px 11px;font-weight:800}
@@ -333,6 +356,8 @@ for(const r of db.routines){
   if(r.active===undefined)r.active=true;
   if(!r.frequency)r.frequency="weekly";
   if(!r.interval)r.interval=1;
+  if(!Array.isArray(r.rotation))r.rotation=[];
+  if(r.rotationIndex===undefined)r.rotationIndex=0;
 }
 for(const s of db.school){if(s.done===undefined)s.done=false}
 for(const p of db.pantry){if(!p.level)p.level="ok";if(p.autoShop===undefined)p.autoShop=false}
@@ -346,7 +371,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:""};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -928,13 +953,64 @@ function ensureCalendarOwners(){
 }
 ensureCalendarOwners();
 
+const AUTO_BACKUP_KEY="familienhub-v10-restore-points";
+function autoBackupSnapshot(){
+  const snap=structuredClone(db);
+  // Restore points should remain compact and should not duplicate secrets/photos.
+  for(const p of (snap.family||[]))p.photo="";
+  if(snap.ha)snap.ha={...snap.ha,token:""};
+  return snap;
+}
+function restorePoints(){
+  try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"[]")}catch{return []}
+}
+function createRestorePoint(reason="auto",force=false){
+  try{
+    const points=restorePoints();
+    const last=points[0]?.at?new Date(points[0].at).getTime():0;
+    if(!force&&Date.now()-last<6*3600000)return;
+    points.unshift({at:new Date().toISOString(),reason,data:JSON.stringify(autoBackupSnapshot())});
+    localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(points.slice(0,5)));
+  }catch(e){console.warn("Wiederherstellungspunkt:",e)}
+}
+function restoreLocalPoint(index){
+  const p=restorePoints()[index];if(!p)return;
+  if(!confirm(`Stand vom ${new Date(p.at).toLocaleString("de-DE")} wiederherstellen?`))return;
+  try{
+    const restored=JSON.parse(p.data);
+    const currentPhotos=new Map((db.family||[]).map(x=>[x.id,x.photo]));
+    for(const x of (restored.family||[]))if(currentPhotos.has(x.id))x.photo=currentPhotos.get(x.id)||"";
+    if(restored.ha&&db.ha?.token)restored.ha.token=db.ha.token;
+    db=restored;
+    localStorage.setItem(KEY,JSON.stringify(db));
+    scheduleCloudPush();
+    render();
+    alert("Wiederherstellungspunkt geladen.");
+  }catch(e){alert("Wiederherstellung fehlgeschlagen: "+e.message)}
+}
+function deleteRestorePoints(){
+  if(confirm("Alle lokalen Wiederherstellungspunkte löschen?")){
+    localStorage.removeItem(AUTO_BACKUP_KEY);render();
+  }
+}
 const save=()=>{
   localStorage.setItem(KEY,JSON.stringify(db));
+  createRestorePoint("auto",false);
   scheduleCloudPush();
 };
 const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const person=n=>db.family.find(p=>p.name===n);
 function avatar(n,sm=false){const p=person(n)||{name:n||"?",photo:"",tone:"#9b78a6"};return p.photo?`<img class="avatar ${sm?"sm":""}" src="${p.photo}" alt="${esc(p.name)}">`:`<div class="avatar ${sm?"sm":""}" style="background:${p.tone}">${esc((p.name||"?")[0])}</div>`}
+
+
+function syncMiniHTML(){
+  if(!cloud.enabled||!cloud.familyId)return `<button class="sync-mini off" title="Lokaler Modus / Cloud öffnen" onclick="event.stopPropagation();go('cloud')">◌</button>`;
+  const age=cloud.lastSync?Date.now()-new Date(cloud.lastSync).getTime():Infinity;
+  const ok=age<60000,warn=age<5*60000;
+  const cls=ok?"ok":warn?"warn":"off";
+  const title=cloud.lastSync?`Letzter Sync ${new Date(cloud.lastSync).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}`:"Noch nicht synchronisiert";
+  return `<button class="sync-mini ${cls}" title="${esc(title)}" onclick="event.stopPropagation();go('cloud')">${ok?"●":warn?"◐":"○"}</button>`;
+}
 
 function calendarName(ownerId){
   if(ownerId==="family") return "Familie";
@@ -957,7 +1033,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v9.1.1</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -1332,7 +1408,11 @@ function advanceDate(date,frequency,interval=1){
 }
 function routineLabel(r){
   const unit={daily:"Tag",weekly:"Woche",monthly:"Monat",yearly:"Jahr"}[r.frequency]||"Intervall";
-  return Number(r.interval||1)===1?`jede${unit==="Woche"?" ":"n "}${unit.toLowerCase()}`:`alle ${r.interval} ${unit}${unit==="Monat"?"e":unit==="Jahr"?"e":"n"}`;
+  const base=Number(r.interval||1)===1?`jede${unit==="Woche"?" ":"n "}${unit.toLowerCase()}`:`alle ${r.interval} ${unit}${unit==="Monat"?"e":unit==="Jahr"?"e":"n"}`;
+  return base+(Array.isArray(r.rotation)&&r.rotation.length>1?` · Wechsel: ${r.rotation.join(" → ")}`:"");
+}
+function selectedRoutineRotation(){
+  return [...document.querySelectorAll(".routine-rotate:checked")].map(x=>x.value);
 }
 function sortedRoutines(){
   return [...db.routines].filter(r=>r.active!==false).sort((a,b)=>String(a.nextDate||"").localeCompare(String(b.nextDate||"")));
@@ -1340,9 +1420,16 @@ function sortedRoutines(){
 function completeRoutine(id){
   if(!requireGeneralEdit())return;
   const r=db.routines.find(x=>x.id===id);if(!r)return;
+  const oldWho=r.who;
   r.lastDone=new Date().toISOString();
   r.nextDate=advanceDate(r.nextDate||todayISO(),r.frequency,r.interval);
-  addActivity("🔁",`hat die Routine „${r.title}“ erledigt.`,"routine",r.id);
+  if(Array.isArray(r.rotation)&&r.rotation.length>1){
+    const current=Math.max(0,r.rotation.indexOf(r.who));
+    const next=(current+1)%r.rotation.length;
+    r.rotationIndex=next;
+    r.who=r.rotation[next];
+  }
+  addActivity("🔁",`hat die Routine „${r.title}“ erledigt.${oldWho!==r.who?` Als Nächstes: ${r.who}.`:""}`,"routine",r.id);
   save();render();
 }
 function setRoutineActive(id,on){
@@ -1437,6 +1524,7 @@ function expiringDocuments(days=90){
 }
 function smartSuggestions(){
   const out=[];
+  if(cloud.enabled&&cloud.familyId&&cloud.lastSync&&Date.now()-new Date(cloud.lastSync).getTime()>5*60000)out.push({icon:"☁️",title:"Synchronisierung ist länger her",text:`Letzter Sync ${new Date(cloud.lastSync).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}`,action:`go('cloud')`,button:"Sync prüfen"});
   const overdue=sortedOpenTasks().filter(isTaskOverdue);
   if(overdue.length)out.push({icon:"⏰",title:`${overdue.length} Aufgabe${overdue.length===1?"":"n"} überfällig`,text:"Am besten kurz neu terminieren oder erledigen.",action:`go('tasks')`,button:"Aufgaben"});
   const dueR=sortedRoutines().filter(r=>daysUntil(r.nextDate)<=0);
@@ -1460,15 +1548,32 @@ function smartSuggestionsHTML(limit=6){
   const xs=smartSuggestions().slice(0,limit);
   return xs.length?xs.map(s=>`<div class="suggestion"><div class="suggestion-icon">${s.icon}</div><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${esc(s.text)}</div><div class="suggestion-actions"><button onclick="${s.action}">${esc(s.button)} →</button></div></div></div>`).join(""):'<div class="notice success">Gerade sieht alles gut aus. 🎉</div>';
 }
-function myDayItems(){
-  const me=currentDisplayName(),p=person(me),owner=p?.id;
-  const td=todayISO();
+function focusPersonName(){
+  const desired=state.focusPerson||currentDisplayName();
+  return db.family.some(p=>p.name===desired)?desired:(db.family[0]?.name||currentDisplayName());
+}
+function setFocusPerson(name){state.focusPerson=name;render()}
+function myDayItems(name=focusPersonName()){
+  const me=name,p=person(me),owner=p?.id,td=todayISO();
   return {
     events:db.events.filter(e=>e.date===td&&(e.calendarOwner==="family"||e.calendarOwner===owner)).sort((a,b)=>String(a.time).localeCompare(String(b.time))),
     tasks:sortedOpenTasks(db.tasks.filter(t=>t.who===me&&(t.due===td||isTaskOverdue(t)))),
-    school:db.school.filter(s=>!s.done&&s.child===me&&s.date<=td).sort((a,b)=>a.date.localeCompare(b.date))
+    school:db.school.filter(s=>!s.done&&s.child===me&&s.date<=td).sort((a,b)=>a.date.localeCompare(b.date)),
+    routines:sortedRoutines().filter(r=>r.who===me&&daysUntil(r.nextDate)<=0)
   };
 }
+function myDayView(){
+  const name=focusPersonName(),x=myDayItems(name),canSwitch=canManageFamily();
+  return `<div class="section-title"><div><h2>Mein Tag</h2><div class="small">Alles, was für eine Person heute wirklich wichtig ist.</div></div><button class="ghost" onclick="go('week')">Unsere Woche</button></div>
+  ${canSwitch?`<div class="person-pills">${db.family.map(p=>`<button class="person-pill ${name===p.name?"active":""}" onclick="setFocusPerson('${esc(p.name)}')">${esc(p.name)}</button>`).join("")}</div>`:""}
+  <div class="grid">
+   <section class="card s6"><h3>📅 Termine heute</h3>${x.events.map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')"><div class="time">${esc(e.time||"")}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${esc(calendarName(e.calendarOwner))}${e.place?` · ${esc(e.place)}`:""}</div></div></div>`).join("")||'<div class="notice">Heute keine Termine.</div>'}</section>
+   <section class="card s6"><h3>✓ Aufgaben</h3>${x.tasks.map(taskRow).join("")||'<div class="notice success">Keine offenen Aufgaben für heute.</div>'}</section>
+   <section class="card s6"><h3>🎒 Schule</h3>${x.school.map(s=>`<div class="row"><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${fmtDate(s.date)} · ${esc(s.kind)}${s.subject?` · ${esc(s.subject)}`:""}</div></div></div>`).join("")||'<div class="notice">Nichts offen.</div>'}</section>
+   <section class="card s6"><h3>🔁 Routinen</h3>${x.routines.map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${fmtDate(r.nextDate)}</div></div><button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button></div>`).join("")||'<div class="notice">Keine fälligen Routinen.</div>'}</section>
+  </div>`;
+}
+
 function weekData(){
   const days=[];
   for(let i=0;i<7;i++){
@@ -1558,17 +1663,64 @@ function familyStatusView(){
   const statuses=["Zuhause","Schule","Arbeit","Unterwegs","Frei","Nicht stören"];
   return `<div class="section-title"><div><h2>Familienstatus</h2><div class="small">Freiwillig und manuell – keine Standortverfolgung.</div></div></div><div class="status-grid">${db.family.map(p=>{const s=statusFor(p.name),editable=canManageFamily()||p.name===currentDisplayName();return `<div class="status-card"><div class="myday-person">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}${s.updatedAt?` · ${activityAge(s.updatedAt)}`:""}</div></div></div>${editable?`<div class="status-actions">${statuses.map(x=>`<button onclick="setFamilyStatus('${esc(p.name)}','${x}')">${x}</button>`).join("")}<button onclick="setFamilyStatusNote('${esc(p.name)}')">✎ Hinweis</button></div>`:""}</div>`}).join("")}</div>`;
 }
-function quickCaptureCreate(kind,text){
+function nextWeekdayDate(target){
+  const map={so:0,sonntag:0,mo:1,montag:1,di:2,dienstag:2,mi:3,mittwoch:3,do:4,donnerstag:4,fr:5,freitag:5,sa:6,samstag:6};
+  const n=map[target.toLowerCase()];if(n===undefined)return null;
+  const d=new Date();d.setHours(12,0,0,0);let diff=(n-d.getDay()+7)%7;if(diff===0)diff=7;d.setDate(d.getDate()+diff);
+  return d.toISOString().slice(0,10);
+}
+function parseQuickCapture(text){
+  let raw=String(text||"").trim(),lower=raw.toLowerCase(),date=todayISO(),time="18:00",who=currentDisplayName();
+  if(/\bübermorgen\b|\buebermorgen\b/.test(lower))date=plusDays(2);
+  else if(/\bmorgen\b/.test(lower))date=plusDays(1);
+  else{
+    const wd=lower.match(/\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)\b/);
+    if(wd){const x=nextWeekdayDate(wd[1]);if(x)date=x}
+  }
+  const tm=lower.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
+  if(tm)time=`${String(tm[1]).padStart(2,"0")}:${tm[2]}`;
+  for(const p of db.family){
+    if(lower.includes("@"+p.name.toLowerCase())){who=p.name;break}
+  }
+  let kind="task";
+  if(/\b(kaufen|besorgen|einkauf|einkaufen|mitbringen)\b/.test(lower)||/^einkauf\s*:/.test(lower))kind="shop";
+  if(/\b(hausaufgabe|klassenarbeit|schularbeit|elternabend|schulausflug|schule)\b/.test(lower)||/^schule\s*:/.test(lower))kind="school";
+  if(/\b(jeden|jede|täglich|taeglich|wöchentlich|woechentlich|monatlich|regelmäßig|regelmaessig)\b/.test(lower)||/^routine\s*:/.test(lower))kind="routine";
+  if(/^notiz\s*:|^pinnwand\s*:/.test(lower))kind="note";
+  if(/\b(termin|arzt|zahnarzt|friseur|meeting|besprechung)\b/.test(lower)||/^termin\s*:/.test(lower))kind="event";
+  let title=raw
+    .replace(/^(aufgabe|einkauf|schule|routine|notiz|pinnwand|termin)\s*:\s*/i,"")
+    .replace(/\b(heute|morgen|übermorgen|uebermorgen)\b/gi,"")
+    .replace(/\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/gi,"")
+    .replace(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g,"")
+    .replace(new RegExp("@"+who.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"ig"),"")
+    .replace(/\s{2,}/g," ").trim();
+  if(kind==="shop")title=title.replace(/\b(kaufen|besorgen|einkaufen)\b/gi,"").replace(/\s{2,}/g," ").trim();
+  return {kind,title:title||raw,date,time,who};
+}
+function quickKindLabel(k){return ({task:"✓ Aufgabe",shop:"🛒 Einkauf",event:"📅 Termin",school:"🎒 Schule",routine:"🔁 Routine",note:"📌 Pinnwand",inbox:"📥 Inbox"}[k]||k)}
+function previewSmartCapture(){
+  const text=val("fCaptureText"),p=parseQuickCapture(text),box=document.getElementById("smartCapturePreview");
+  if(!box)return;
+  box.innerHTML=text.trim()?`Vorschlag: <b>${quickKindLabel(p.kind)}</b> · ${esc(p.title)}${["task","event","school"].includes(p.kind)?` · ${fmtDate(p.date)} ${esc(p.time)}`:""}${p.who?` · ${esc(p.who)}`:""}`:"Text eingeben – FamilienHub schlägt dann eine passende Ablage vor.";
+}
+function smartQuickCapture(){
+  const p=parseQuickCapture(val("fCaptureText"));
+  if(!p.title)return alert("Bitte erst etwas eingeben.");
+  quickCaptureCreate(p.kind,p.title,p);
+}
+function quickCaptureCreate(kind,text,parsed=null){
   if(!requireGeneralEdit())return;
   const title=String(text||"").trim();if(!title)return;
-  const id=kind[0]+Date.now(),me=currentDisplayName();
-  if(kind==="task")db.tasks.push({id,title,due:todayISO(),time:"18:00",who:me,prio:"med",repeat:"none",remindMinutes:60,note:"Schnellerfassung",done:false,completedAt:null,comments:[]});
+  const id=kind[0]+Date.now(),me=parsed?.who||currentDisplayName(),date=parsed?.date||todayISO(),time=parsed?.time||"18:00";
+  if(kind==="task")db.tasks.push({id,title,due:date,time,who:me,prio:"med",repeat:"none",remindMinutes:60,note:"Schnellerfassung",done:false,completedAt:null,comments:[]});
+  if(kind==="event"){const owner=person(me)?.id||"family";db.events.push({id,title,date,time,calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:"",remindMinutes:60,note:"Schnellerfassung",comments:[]})}
   if(kind==="shop")db.shopping.push({id,listId:state.shopList||db.shoppingLists[0]?.id,name:title,qty:"1×",cat:"Sonstiges",by:me,note:"",done:false,comments:[]});
   if(kind==="note")db.notes.unshift({id,title,body:"",text:"",category:"Allgemein",author:me,created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments:[]});
   if(kind==="inbox")db.inbox.unshift({id,text:title,author:me,created:new Date().toISOString()});
-  if(kind==="routine")db.routines.push({id,title,who:me,frequency:"weekly",interval:1,nextDate:todayISO(),time:"18:00",note:"",active:true,lastDone:""});
-  if(kind==="school")db.school.push({id,title,child:me,kind:"Sonstiges",subject:"",date:todayISO(),time:"",note:"",done:false});
-  addActivity("⚡",`hat „${title}“ schnell erfasst.` ,kind,id);
+  if(kind==="routine")db.routines.push({id,title,who:me,frequency:"weekly",interval:1,nextDate:date,time,note:"",active:true,lastDone:"",rotation:[],rotationIndex:0});
+  if(kind==="school")db.school.push({id,title,child:me,kind:"Sonstiges",subject:"",date,time,note:"",done:false});
+  addActivity("⚡",`hat „${title}“ schnell als ${quickKindLabel(kind)} erfasst.` ,kind,id);
   save();state.modal=null;render();
 }
 
@@ -1623,12 +1775,12 @@ function documentsView(){
 function dashboardCard(key,ctx){
   if(key==="smart")return `<section class="card s7"><div class="section-head"><h3>✨ Was jetzt wichtig ist</h3><button class="card-link" onclick="go('week')">Woche →</button></div>${smartSuggestionsHTML(5)}</section>`;
   if(key==="myday"){
-    const x=myDayItems();
-    return `<section class="card s5"><div class="section-head"><h3>👤 Mein Tag</h3><span class="meta">${esc(currentDisplayName())}</span></div>${[
+    const name=focusPersonName(),x=myDayItems(name);
+    return `<section class="card s5"><div class="section-head"><h3>👤 Mein Tag</h3><button class="card-link" onclick="go('myday')">${esc(name)} →</button></div>${[
       ...x.events.slice(0,2).map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')"><span>📅</span><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")}</div></div></div>`),
       ...x.tasks.slice(0,3).map(t=>`<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><span>✓</span><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${taskDueLabel(t)}</div></div></div>`),
-      ...x.school.slice(0,2).map(s=>`<div class="row"><span>🎒</span><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${fmtDate(s.date)}</div></div></div>`)
-    ].join("")||'<div class="notice success">Für dich ist gerade nichts offen.</div>'}</section>`;
+      ...x.routines.slice(0,2).map(r=>`<div class="row"><span>🔁</span><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">fällig</div></div></div>`)
+    ].join("")||'<div class="notice success">Für heute ist gerade nichts offen.</div>'}</section>`;
   }
   if(key==="status")return `<section class="card s6"><div class="section-head"><h3>📍 Familienstatus</h3><button class="card-link" onclick="go('status')">Ändern →</button></div>${db.family.slice(0,5).map(p=>{const s=statusFor(p.name);return `<div class="row">${avatar(p.name,true)}<div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}</div></div></div>`}).join("")}</section>`;
   if(key==="routines")return `<section class="card s6"><div class="section-head"><h3>🔁 Routinen</h3><button class="card-link" onclick="go('routines')">Alle →</button></div>${sortedRoutines().slice(0,4).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${fmtDate(r.nextDate)} · ${esc(r.who)}</div></div>${daysUntil(r.nextDate)<=0?`<button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Routinen.</div>'}</section>`;
@@ -1736,7 +1888,30 @@ function calendarView(){
  </section>`;
 }
 function tasksView(){const open=sortedOpenTasks(),overdue=open.filter(isTaskOverdue);return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><div class="grid">${overdue.length?`<section class="card s12"><div class="notice warning"><b>⏰ ${overdue.length} überfällige Aufgabe${overdue.length===1?"":"n"}</b> – sie stehen automatisch ganz oben.</div></section>`:""}<section class="card s8">${open.map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${open.length}</div><div class="kpi-label">offen</div><br><div class="kpi">${overdue.length}</div><div class="kpi-label">überfällig</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
-function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
+
+function frequentShopping(listId){
+  const map=new Map();
+  for(const s of db.shopping.filter(x=>x.listId===listId&&x.done)){
+    const k=s.name.trim().toLowerCase();
+    const cur=map.get(k)||{name:s.name,qty:s.qty,cat:s.cat,count:0,last:s};
+    cur.count++;cur.last=s;map.set(k,cur);
+  }
+  return [...map.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"de")).slice(0,8);
+}
+function readdFrequentShopping(listId,name){
+  if(!requireGeneralEdit())return;
+  if(db.shopping.some(s=>s.listId===listId&&!s.done&&s.name.toLowerCase()===name.toLowerCase()))return alert("Steht schon auf der Liste.");
+  const old=[...db.shopping].reverse().find(s=>s.listId===listId&&s.name.toLowerCase()===name.toLowerCase());
+  const id="s"+Date.now();
+  db.shopping.push({id,listId,name:old?.name||name,qty:old?.qty||"1×",cat:old?.cat||"Sonstiges",by:currentDisplayName(),note:old?.note||"",done:false});
+  addActivity("🛒",`hat „${old?.name||name}“ erneut auf die Einkaufsliste gesetzt.`,"shop",id);
+  save();render();
+}
+function shoppingView(){const lists=db.shoppingLists,listId=state.shopList,all=db.shopping.filter(s=>s.listId===listId),open=all.filter(s=>!s.done),done=all.filter(s=>s.done),frequent=frequentShopping(listId);return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div>
+ ${frequent.length?`<section class="card s12" style="margin-bottom:12px"><div class="section-head"><h3>↻ Häufig gekauft</h3><span class="meta">1 Tipp zum Wiederholen</span></div><div class="frequent-grid">${frequent.map(x=>`<button class="frequent-chip" onclick="readdFrequentShopping('${listId}','${esc(x.name)}')">+ ${esc(x.name)}</button>`).join("")}</div></section>`:""}
+ <div class="shopping-tools"><span class="pill">${open.length} offen</span>${done.length?`<button class="ghost" onclick="state.showDoneShopping=!state.showDoneShopping;render()">${state.showDoneShopping?"Erledigte ausblenden":`${done.length} erledigte anzeigen`}</button>`:""}</div>
+ <div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><section class="card s12">${open.map(shopRow).join("")||'<div class="notice success">Alles eingekauft 🎉</div>'}${state.showDoneShopping&&done.length?`<h3 style="margin-top:16px">Erledigt</h3>${done.slice().reverse().map(shopRow).join("")}`:""}</section>`}
+
 function wishesView(){
  const owners=[...new Set(db.wishes.map(w=>w.owner))];
  return `<div class="section-title"><h2>Wunschlisten</h2><button class="primary" onclick="openModal('wish')">+ Wunsch</button></div>
@@ -1753,7 +1928,7 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["myday","👤","Mein Tag"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
 
@@ -2089,10 +2264,38 @@ function reminderItems(){
   }
   return items.filter(x=>!Number.isNaN(x.trigger.getTime())).sort((a,b)=>a.trigger-b.trigger);
 }
+
+function reminderSnoozeKey(key){return "fh-snooze-"+key}
+function reminderDismissKey(key){return "fh-dismiss-"+key}
+function effectiveReminderTrigger(r){
+  const s=Number(localStorage.getItem(reminderSnoozeKey(r.key))||0);
+  return s?new Date(s):r.trigger;
+}
+function snoozeReminder(key,minutes){
+  const until=Date.now()+Number(minutes)*60000;
+  localStorage.setItem(reminderSnoozeKey(key),String(until));
+  localStorage.removeItem("fh-notified-"+key);
+  render();
+}
+function snoozeReminderTomorrow(key){
+  const d=new Date();d.setDate(d.getDate()+1);d.setHours(8,0,0,0);
+  localStorage.setItem(reminderSnoozeKey(key),String(d.getTime()));
+  localStorage.removeItem("fh-notified-"+key);
+  render();
+}
+function dismissReminder(key){
+  localStorage.setItem(reminderDismissKey(key),"1");
+  localStorage.removeItem(reminderSnoozeKey(key));
+  render();
+}
 function remindersView(){
   const now=new Date();
-  const all=reminderItems();
-  const upcoming=all.filter(x=>x.due>=new Date(now.getTime()-86400000)).slice(0,30);
+  const upcoming=reminderItems()
+    .filter(r=>!localStorage.getItem(reminderDismissKey(r.key)))
+    .map(r=>({...r,effectiveTrigger:effectiveReminderTrigger(r)}))
+    .filter(r=>r.due>=new Date(now.getTime()-86400000))
+    .sort((a,b)=>a.effectiveTrigger-b.effectiveTrigger)
+    .slice(0,40);
   const permission=("Notification" in window)?Notification.permission:"unsupported";
   return `<div class="section-title"><div><h2>Erinnerungen</h2><div class="small">Termine, Aufgaben, Routinen, Schule, Dokumente, Reisen, Anlässe und Hauswartungen in einer Übersicht.</div></div></div>
   <div class="grid">
@@ -2100,11 +2303,11 @@ function remindersView(){
       <h3>🔔 Benachrichtigungen</h3>
       <div class="notice ${permission==="granted"?"success":"warning"}">${permission==="granted"?"Browser-Benachrichtigungen sind aktiviert.":permission==="denied"?"Benachrichtigungen sind im Browser blockiert.":"Benachrichtigungen sind noch nicht aktiviert."}</div>
       ${permission!=="granted"&&permission!=="unsupported"?`<button class="primary" style="margin-top:10px" onclick="enableNotifications()">Benachrichtigungen aktivieren</button>`:""}
-      <div class="meta" style="margin-top:10px">In dieser PWA funktionieren Erinnerungen zuverlässig, wenn FamilienHub geöffnet bzw. regelmäßig gestartet wird. Echte serverseitige Push-Nachrichten bauen wir später separat.</div>
+      <div class="meta" style="margin-top:10px">Erinnerungen lassen sich jetzt verschieben oder für den einzelnen Eintrag ausblenden.</div>
     </section>
     <section class="card s8">
       <h3>⏰ Kommende Erinnerungen</h3>
-      ${upcoming.length?upcoming.map(r=>`<div class="row"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.type)} · ${esc(r.meta)}</div></div><div class="reminder-time">${reminderDateText(r.trigger)}</div></div>`).join(""):`<div class="notice success">Keine kommenden Erinnerungen.</div>`}
+      ${upcoming.length?upcoming.map(r=>`<div class="row"><div class="reminder-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.type)} · ${esc(r.meta)}${r.effectiveTrigger.getTime()!==r.trigger.getTime()?` · <b>verschoben</b>`:""}</div><div class="reminder-actions"><button onclick="snoozeReminder('${r.key}',15)">+15 Min</button><button onclick="snoozeReminder('${r.key}',60)">+1 Std</button><button onclick="snoozeReminderTomorrow('${r.key}')">Morgen 8:00</button><button onclick="dismissReminder('${r.key}')">Ausblenden</button></div></div><div class="reminder-time">${reminderDateText(r.effectiveTrigger)}</div></div>`).join(""):`<div class="notice success">Keine kommenden Erinnerungen.</div>`}
     </section>
   </div>`;
 }
@@ -2114,11 +2317,27 @@ function inboxView(){
  <div class="swipe-hint">← Schnellnotiz nach links wischen zum Löschen</div>
  <div class="grid">
   <section class="card s8">
-   ${db.inbox.length?db.inbox.map(i=>swipeWrap("inbox",i.id,`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)} · ${new Date(i.created).toLocaleString("de-DE")}</div>${canEditGeneral()?`<div class="inbox-actions"><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','task')">✓ Aufgabe</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','event')">📅 Termin</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','shop')">🛒 Einkauf</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','note')">📌 Pinnwand</button></div>`:""}</div></div>`)).join(""):`<div class="notice success">Alles einsortiert 🎉</div>`}
+   ${db.inbox.length?db.inbox.map(i=>swipeWrap("inbox",i.id,`<div class="row"><div class="grow"><div class="title">${esc(i.text)}</div><div class="meta">${esc(i.author)} · ${new Date(i.created).toLocaleString("de-DE")}</div>${canEditGeneral()?`<div class="inbox-actions"><button class="mini" onclick="event.stopPropagation();autoConvertInbox('${i.id}')">✨ Auto</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','task')">✓ Aufgabe</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','event')">📅 Termin</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','shop')">🛒 Einkauf</button><button class="mini" onclick="event.stopPropagation();convertInbox('${i.id}','note')">📌 Pinnwand</button></div>`:""}</div></div>`)).join(""):`<div class="notice success">Alles einsortiert 🎉</div>`}
   </section>
   <section class="card s4"><h3>💡 Wofür ist die Inbox?</h3><div class="notice">Hier landet alles, was dir gerade einfällt. Später kannst du daraus direkt einen Termin, eine Aufgabe, einen Einkauf oder eine Pinnwand-Notiz machen.</div><div class="kpi-grid" style="margin-top:12px"><div class="kpi-box"><div class="kpi">${db.inbox.length}</div><div class="kpi-label">offen</div></div><div class="kpi-box"><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">Aufgaben</div></div><div class="kpi-box"><div class="kpi">${db.shopping.filter(s=>!s.done).length}</div><div class="kpi-label">Einkauf</div></div></div></section>
  </div>`;
 }
+
+function autoConvertInbox(id){
+  const i=db.inbox.find(x=>x.id===id);if(!i)return;
+  const p=parseQuickCapture(i.text);
+  const nowId=Date.now(),who=p.who||currentDisplayName();
+  if(p.kind==="task")db.tasks.push({id:"t"+nowId,title:p.title,due:p.date,time:p.time,who,prio:"med",repeat:"none",remindMinutes:60,note:"Aus Familien-Inbox",done:false,completedAt:null,comments:[]});
+  else if(p.kind==="event"){const owner=person(who)?.id||"family";db.events.push({id:"e"+nowId,title:p.title,date:p.date,time:p.time,calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:"",remindMinutes:60,note:"Aus Familien-Inbox",comments:[]})}
+  else if(p.kind==="shop")db.shopping.push({id:"s"+nowId,listId:state.shopList||db.shoppingLists[0]?.id,name:p.title,qty:"1×",cat:"Sonstiges",by:who,note:"Aus Familien-Inbox",done:false});
+  else if(p.kind==="school")db.school.push({id:"c"+nowId,title:p.title,child:who,kind:"Sonstiges",subject:"",date:p.date,time:p.time,note:"Aus Familien-Inbox",done:false});
+  else if(p.kind==="routine")db.routines.push({id:"r"+nowId,title:p.title,who,frequency:"weekly",interval:1,nextDate:p.date,time:p.time,note:"Aus Familien-Inbox",active:true,lastDone:"",rotation:[],rotationIndex:0});
+  else db.notes.unshift({id:"n"+nowId,title:p.title,body:"",text:"",category:"Allgemein",author:who,created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments:[]});
+  db.inbox=db.inbox.filter(x=>x.id!==id);
+  addActivity("✨",`hat eine Inbox-Notiz automatisch als ${quickKindLabel(p.kind)} einsortiert.`,p.kind,"");
+  save();render();
+}
+
 function convertInbox(id,type){
  if(!requireGeneralEdit())return;
  const i=db.inbox.find(x=>x.id===id);if(!i)return;
@@ -2206,10 +2425,17 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v6.2 ergänzt Erinnerungszentrale und Essensplan → Einkaufsliste.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10 ergänzt Komfortfunktionen, Rotationen, Schlummern, intelligente Schnellerfassung und Wiederherstellungspunkte.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
-function backupView(){return `<div class="section-title"><h2>Datensicherung</h2></div><section class="card s12"><h3>💾 Backup</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Demo zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Damit kannst du deine lokalen Daten zwischen Browsern manuell übertragen.</div></section>`}
+function backupView(){
+ const pts=restorePoints();
+ return `<div class="section-title"><h2>Datensicherung</h2></div>
+ <div class="grid">
+  <section class="card s7"><h3>💾 Backup-Datei</h3><div class="toolbar"><button class="primary" onclick="exportJSON()">Daten exportieren</button><button class="ghost" onclick="document.getElementById('importFile').click()">Backup importieren</button><button class="danger" onclick="resetDemo()">Lokale Daten zurücksetzen</button></div><input id="importFile" type="file" accept="application/json" hidden onchange="importJSON(event)"><div class="notice" style="margin-top:12px">Die JSON-Datei eignet sich als manuelle Sicherung außerhalb des Browsers.</div></section>
+  <section class="card s5"><div class="section-head"><h3>🛟 Wiederherstellungspunkte</h3><button class="ghost" onclick="createRestorePoint('manuell',true);render()">Jetzt sichern</button></div>${pts.length?pts.map((p,i)=>`<div class="backup-point"><div class="grow"><div class="title">${new Date(p.at).toLocaleString("de-DE")}</div><div class="meta">${p.reason==="manuell"?"Manuell":"Automatisch"}</div></div><button class="ghost" onclick="restoreLocalPoint(${i})">Laden</button></div>`).join(""):'<div class="notice">Noch kein lokaler Wiederherstellungspunkt.</div>'}${pts.length?`<button class="danger" style="margin-top:10px" onclick="deleteRestorePoints()">Punkte löschen</button>`:""}<div class="meta" style="margin-top:10px">Automatisch höchstens alle 6 Stunden, maximal 5 Stände. Profilfotos und HA-Token werden dabei nicht dupliziert.</div></section>
+ </div>`;
+}
 function captureModalDraft(){
  if(!state.modal)return;
  const modal=document.querySelector(".modal");
@@ -2227,15 +2453,23 @@ function restoreModalDraft(){
    if(el)el.value=value;
  }
 }
+function renderCrash(err){
+  console.error("FamilienHub Renderfehler:",err);
+  const root=document.getElementById("root");
+  if(!root)return;
+  root.innerHTML=`<div class="crash-box"><h2>FamilienHub konnte diese Ansicht nicht laden</h2><p>Deine Daten sind weiterhin gespeichert. Die App zeigt jetzt statt einer weißen Seite diese Fehlerseite.</p><div class="crash-code">${esc(err?.stack||err?.message||String(err))}</div><div class="toolbar"><button class="primary" onclick="state.view='today';state.modal=null;state.itemDetail=null;state.noteDetailId=null;render()">Zur Heute-Seite</button><button class="ghost" onclick="location.reload()">Neu laden</button><button class="ghost" onclick="exportJSON()">Backup exportieren</button></div></div>`;
+}
 function render(){
- captureModalDraft();
- const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
- document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
- restoreModalDraft();
- checkReminders();
- if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
- setTimeout(initSwipeRows,0);
- if(state.searchOpen)setTimeout(()=>document.getElementById("globalSearch")?.focus(),30);
+ try{
+   captureModalDraft();
+   const m={today:todayView,myday:myDayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+   document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
+   restoreModalDraft();
+   checkReminders();
+   if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
+   setTimeout(initSwipeRows,0);
+   if(state.searchOpen)setTimeout(()=>document.getElementById("globalSearch")?.focus(),30);
+ }catch(e){renderCrash(e)}
 }
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;addActivity(s.done?"✅":"↩️",s.done?`hat „${s.name}“ beim Einkauf erledigt.`:`hat „${s.name}“ wieder auf die Einkaufsliste gesetzt.`,"shop",s.id);save();render()}
@@ -2265,12 +2499,12 @@ inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeh
 maintenance:`<div class="full"><label>Wartung</label><input id="fTitle" placeholder="z. B. Rauchmelder prüfen"></div><div><label>Bereich</label><input id="fArea" placeholder="z. B. Technik"></div><div><label>Nächster Termin</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Intervall in Monaten</label><input id="fInterval" type="number" min="1" value="12"></div><div><label>Erinnerung Tage vorher</label><input id="fReminderDays" type="number" min="0" value="30"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeholder="z. B. Waschmaschine"></div><div><label>Ort</label><input id="fArea" placeholder="Hauswirtschaft"></div><div><label>Kaufdatum</label><input id="fPurchase" type="date"></div><div><label>Garantie bis</label><input id="fWarranty" type="date"></div><div><label>Seriennummer</label><input id="fSerial"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`,
-routine:`<div class="full"><label>Routine</label><input id="fTitle" placeholder="z. B. Bettwäsche wechseln"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Rhythmus</label><select id="fFrequency"><option value="daily">Täglich</option><option value="weekly" selected>Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="1"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+routine:`<div class="full"><label>Routine</label><input id="fTitle" placeholder="z. B. Bettwäsche wechseln"></div><div><label>Aktuell zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Rhythmus</label><select id="fFrequency"><option value="daily">Täglich</option><option value="weekly" selected>Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="1"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div class="full"><label>Abwechselnd zuständig (optional)</label><div class="rotation-list">${db.family.map(p=>`<label class="rotation-person"><input class="routine-rotate" type="checkbox" value="${esc(p.name)}"> ${esc(p.name)}</label>`).join("")}</div><div class="media-help">Wähle mindestens 2 Personen. Nach jedem Erledigen wechselt FamilienHub automatisch zur nächsten Person.</div></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 school:`<div class="full"><label>Eintrag</label><input id="fTitle" placeholder="z. B. Mathearbeit Kapitel 4"></div><div><label>Kind</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Art</label><select id="fKind"><option>Hausaufgabe</option><option>Klassenarbeit</option><option>Material</option><option>Ausflug</option><option>Elternabend</option><option>Sonstiges</option></select></div><div><label>Fach</label><input id="fSubject" placeholder="z. B. Mathe"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit optional</label><input id="fTime" type="time"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 pantry:`<div class="full"><label>Vorrat</label><input id="fTitle" placeholder="z. B. Spülmaschinentabs"></div><div><label>Menge</label><input id="fQty" placeholder="z. B. 1 Pack"></div><div><label>Kategorie</label><input id="fCat" placeholder="Haushalt"></div><div><label>Stand</label><select id="fLevel"><option value="full">Voll</option><option value="ok" selected>Okay</option><option value="low">Knapp</option><option value="empty">Leer</option></select></div><div><label>Bei knapp/leer</label><select id="fAutoShop"><option value="0">Nur anzeigen</option><option value="1">Automatisch auf Einkauf</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 trip:`<div class="full"><label>Reise</label><input id="fTitle" placeholder="z. B. Sommerurlaub Italien"></div><div class="full"><label>Ziel</label><input id="fDestination"></div><div><label>Von</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Bis</label><input id="fEndDate" type="date" value="${plusDays(37)}"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Start-Checkliste</label><textarea id="fChecklist" placeholder="Koffer packen&#10;Reisepässe prüfen&#10;Pflanzen versorgen&#10;Müll rausbringen"></textarea></div>`,
 document:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Reisepass Vlad"></div><div><label>Kategorie</label><select id="fCategory"><option>Ausweis</option><option>Versicherung</option><option>Garantie</option><option>Rechnung</option><option>Schule</option><option>Haus</option><option>Fahrzeug</option><option>Sonstiges</option></select></div><div><label>Für wen / was?</label><input id="fOwner" placeholder="z. B. Vlad oder Auto"></div><div><label>Gültig bis optional</label><input id="fDate" type="date"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full media-picker"><label>📎 Datei</label><input id="fDocument" type="file" accept="image/*,application/pdf"><div class="media-help">Bild oder PDF, maximal 5 MB. Privat in Supabase gespeichert.</div></div>`,
-routineEdit:`${(()=>{const r=db.routines.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Routine</label><input id="fTitle" value="${esc(r.title||"")}"></div><div><label>Zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${r.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${esc(r.nextDate||todayISO())}"></div><div><label>Rhythmus</label><select id="fFrequency">${[["daily","Täglich"],["weekly","Wöchentlich"],["monthly","Monatlich"],["yearly","Jährlich"]].map(([v,l])=>`<option value="${v}" ${r.frequency===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="${Number(r.interval||1)}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(r.time||"18:00")}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(r.note||"")}</textarea></div>`})()}`,
+routineEdit:`${(()=>{const r=db.routines.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Routine</label><input id="fTitle" value="${esc(r.title||"")}"></div><div><label>Aktuell zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${r.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${esc(r.nextDate||todayISO())}"></div><div><label>Rhythmus</label><select id="fFrequency">${[["daily","Täglich"],["weekly","Wöchentlich"],["monthly","Monatlich"],["yearly","Jährlich"]].map(([v,l])=>`<option value="${v}" ${r.frequency===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="${Number(r.interval||1)}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(r.time||"18:00")}"></div><div class="full"><label>Abwechselnd zuständig (optional)</label><div class="rotation-list">${db.family.map(p=>`<label class="rotation-person"><input class="routine-rotate" type="checkbox" value="${esc(p.name)}" ${(r.rotation||[]).includes(p.name)?"checked":""}> ${esc(p.name)}</label>`).join("")}</div></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(r.note||"")}</textarea></div>`})()}`,
 schoolEdit:`${(()=>{const s=db.school.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Eintrag</label><input id="fTitle" value="${esc(s.title||"")}"></div><div><label>Kind</label><select id="fPerson">${db.family.map(p=>`<option ${s.child===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Art</label><select id="fKind">${["Hausaufgabe","Klassenarbeit","Material","Ausflug","Elternabend","Sonstiges"].map(k=>`<option ${s.kind===k?"selected":""}>${k}</option>`).join("")}</select></div><div><label>Fach</label><input id="fSubject" value="${esc(s.subject||"")}"></div><div><label>Datum</label><input id="fDate" type="date" value="${esc(s.date||todayISO())}"></div><div><label>Zeit optional</label><input id="fTime" type="time" value="${esc(s.time||"")}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(s.note||"")}</textarea></div>`})()}`,
 pantryEdit:`${(()=>{const p=db.pantry.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Vorrat</label><input id="fTitle" value="${esc(p.name||p.title||"")}"></div><div><label>Menge</label><input id="fQty" value="${esc(p.qty||"")}"></div><div><label>Kategorie</label><input id="fCat" value="${esc(p.category||"")}"></div><div><label>Stand</label><select id="fLevel">${[["full","Voll"],["ok","Okay"],["low","Knapp"],["empty","Leer"]].map(([v,l])=>`<option value="${v}" ${p.level===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Bei knapp/leer</label><select id="fAutoShop"><option value="0" ${!p.autoShop?"selected":""}>Nur anzeigen</option><option value="1" ${p.autoShop?"selected":""}>Automatisch auf Einkauf</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(p.note||"")}</textarea></div>`})()}`,
 tripEdit:`${(()=>{const t=db.trips.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Reise</label><input id="fTitle" value="${esc(t.title||"")}"></div><div class="full"><label>Ziel</label><input id="fDestination" value="${esc(t.destination||"")}"></div><div><label>Von</label><input id="fDate" type="date" value="${esc(t.startDate||todayISO())}"></div><div><label>Bis</label><input id="fEndDate" type="date" value="${esc(t.endDate||todayISO())}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(t.note||"")}</textarea></div></div>`})()}`,
@@ -2278,7 +2512,7 @@ documentEdit:`${(()=>{const d=db.documents.find(x=>x.id===state.modal.editId)||{
 mealEdit:`${(()=>{const m=db.meals.find(x=>x.id===state.modal.editId)||{};return `<div><label>Tag</label><input id="fDay" value="${esc(m.day||"")}"></div><div><label>Gericht</label><input id="fTitle" value="${esc(m.title||"")}"></div><div class="full"><label>Zutaten</label><textarea id="fIngredients">${esc((m.ingredients||[]).join(", "))}</textarea></div>`})()}`,
 routineTemplates:`<div class="full"><div class="template-grid"><button type="button" class="template-btn" onclick="addRoutineTemplate('Mülltonne rausstellen','weekly',1)"><b>🗑️ Mülltonne</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Bettwäsche wechseln','weekly',2)"><b>🛏️ Bettwäsche</b>alle 2 Wochen</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Handtücher wechseln','weekly',1)"><b>🧺 Handtücher</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Pflanzen gießen','weekly',1)"><b>🌿 Pflanzen</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Kühlschrank prüfen','weekly',1)"><b>🧊 Kühlschrank</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Rauchmelder prüfen','monthly',6)"><b>🚨 Rauchmelder</b>alle 6 Monate</button></div></div>`,
 pantryTemplates:`<div class="full"><div class="template-grid"><button type="button" class="template-btn" onclick="addPantryTemplate('Toilettenpapier','Haushalt')"><b>🧻 Toilettenpapier</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Spülmaschinentabs','Haushalt')"><b>🍽️ Spülmaschinentabs</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Waschmittel','Haushalt')"><b>🧺 Waschmittel</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Milch','Lebensmittel')"><b>🥛 Milch</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Eier','Lebensmittel')"><b>🥚 Eier</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Kaffee','Lebensmittel')"><b>☕ Kaffee</b></button></div></div>`,
-capture:`<div class="full"><label>Was möchtest du schnell erfassen?</label><textarea id="fCaptureText" placeholder="z. B. Waschmittel kaufen"></textarea></div><div class="full"><label>Wohin?</label><div class="capture-choice"><button type="button" onclick="quickCaptureCreate('task',val('fCaptureText'))">✓ Aufgabe</button><button type="button" onclick="quickCaptureCreate('shop',val('fCaptureText'))">🛒 Einkauf</button><button type="button" onclick="quickCaptureCreate('note',val('fCaptureText'))">📌 Pinnwand</button><button type="button" onclick="quickCaptureCreate('inbox',val('fCaptureText'))">📥 Inbox</button><button type="button" onclick="quickCaptureCreate('routine',val('fCaptureText'))">🔁 Routine</button><button type="button" onclick="quickCaptureCreate('school',val('fCaptureText'))">🎒 Schule</button></div></div>`
+capture:`<div class="full"><label>Was möchtest du schnell erfassen?</label><textarea id="fCaptureText" placeholder="z. B. Milch kaufen morgen&#10;Zahnarzt Freitag 15:30 @Vlad&#10;Jeden Sonntag Mülltonne raus" oninput="previewSmartCapture()"></textarea><div id="smartCapturePreview" class="smart-capture-suggest">Text eingeben – FamilienHub schlägt dann eine passende Ablage vor.</div></div><div class="full"><button type="button" class="primary" style="width:100%" onclick="smartQuickCapture()">✨ Automatisch einsortieren</button></div><div class="full"><label>Oder selbst wählen</label><div class="capture-choice"><button type="button" onclick="quickCaptureCreate('event',val('fCaptureText'))">📅 Termin</button><button type="button" onclick="quickCaptureCreate('task',val('fCaptureText'))">✓ Aufgabe</button><button type="button" onclick="quickCaptureCreate('shop',val('fCaptureText'))">🛒 Einkauf</button><button type="button" onclick="quickCaptureCreate('note',val('fCaptureText'))">📌 Pinnwand</button><button type="button" onclick="quickCaptureCreate('inbox',val('fCaptureText'))">📥 Inbox</button><button type="button" onclick="quickCaptureCreate('routine',val('fCaptureText'))">🔁 Routine</button><button type="button" onclick="quickCaptureCreate('school',val('fCaptureText'))">🎒 Schule</button></div></div>`
 }[t];const editing=t.endsWith("Edit"),template=t.endsWith("Templates");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${t==="capture"?"Schnellerfassung":template?"Vorlagen":editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">${template?"Schließen":"Abbrechen"}</button>${t==="capture"||template?"":`<button class="primary" onclick="saveModal('${t}')">Speichern</button>`}</div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
 async function saveModal(t){if(["person","maintenance","asset","meter","hero","document","documentEdit"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit","capture"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
@@ -2292,12 +2526,12 @@ if(t==="inbox")db.inbox.unshift({id:"i"+Date.now(),text:title,author:currentDisp
 if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),reminderDays:Number(val("fReminderDays")||0),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
 if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now(),name:title,location:val("fArea")||"Haus",purchaseDate:val("fPurchase"),warrantyUntil:val("fWarranty"),serial:val("fSerial"),note:val("fNote")});}
 if(t==="meter"){if(!requireParent())return;db.meterReadings.push({id:"mr"+Date.now(),kind:val("fKind"),value:title,unit:val("fUnit")||"",date:val("fDate")||todayISO()});}
-if(t==="routine")db.routines.push({id,title,who:val("fPerson"),frequency:val("fFrequency")||"weekly",interval:Number(val("fInterval")||1),nextDate:val("fDate")||todayISO(),time:val("fTime")||"18:00",note:val("fNote"),active:true,lastDone:""});
+if(t==="routine"){const rot=selectedRoutineRotation();const who=val("fPerson");db.routines.push({id,title,who:rot.length>1&&rot.includes(who)?who:who,frequency:val("fFrequency")||"weekly",interval:Number(val("fInterval")||1),nextDate:val("fDate")||todayISO(),time:val("fTime")||"18:00",note:val("fNote"),active:true,lastDone:"",rotation:rot.length>1?rot:[],rotationIndex:rot.length>1?Math.max(0,rot.indexOf(who)):0});}
 if(t==="school")db.school.push({id,title,child:val("fPerson"),kind:val("fKind")||"Sonstiges",subject:val("fSubject"),date:val("fDate")||todayISO(),time:val("fTime"),note:val("fNote"),done:false});
 if(t==="pantry")db.pantry.push({id,title,name:title,qty:val("fQty"),category:val("fCat"),level:val("fLevel")||"ok",note:val("fNote"),autoShop:val("fAutoShop")==="1",updatedAt:new Date().toISOString()});
 if(t==="trip"){const checks=val("fChecklist").split(/[\n]+/).map(x=>x.trim()).filter(Boolean).map((text,i)=>({id:"tc"+Date.now()+"-"+i,text,done:false}));db.trips.push({id,title,destination:val("fDestination"),startDate:val("fDate"),endDate:val("fEndDate"),note:val("fNote"),checklist:checks});}
 if(t==="document"){const file=document.getElementById("fDocument")?.files?.[0];if(!file)return alert("Bitte eine Datei auswählen.");let uploaded;try{uploaded=await uploadDocumentFile(id,file)}catch(e){return alert("Dokument-Upload fehlgeschlagen: "+e.message)}db.documents.push({id,title,category:val("fCategory")||"Sonstiges",owner:val("fOwner"),expires:val("fDate"),note:val("fNote"),...uploaded,created:new Date().toISOString(),createdBy:currentDisplayName()});}
-if(t==="routineEdit"){const r=db.routines.find(x=>x.id===state.modal.editId);if(r){r.title=title;r.who=val("fPerson");r.frequency=val("fFrequency");r.interval=Number(val("fInterval")||1);r.nextDate=val("fDate");r.time=val("fTime");r.note=val("fNote");}}
+if(t==="routineEdit"){const r=db.routines.find(x=>x.id===state.modal.editId);if(r){const rot=selectedRoutineRotation();r.title=title;r.who=val("fPerson");r.frequency=val("fFrequency");r.interval=Number(val("fInterval")||1);r.nextDate=val("fDate");r.time=val("fTime");r.note=val("fNote");r.rotation=rot.length>1?rot:[];r.rotationIndex=r.rotation.length?Math.max(0,r.rotation.indexOf(r.who)):0;}}
 if(t==="schoolEdit"){const s=db.school.find(x=>x.id===state.modal.editId);if(s){s.title=title;s.child=val("fPerson");s.kind=val("fKind");s.subject=val("fSubject");s.date=val("fDate");s.time=val("fTime");s.note=val("fNote");}}
 if(t==="pantryEdit"){const p=db.pantry.find(x=>x.id===state.modal.editId);if(p){p.title=title;p.name=title;p.qty=val("fQty");p.category=val("fCat");p.level=val("fLevel");p.autoShop=val("fAutoShop")==="1";p.note=val("fNote");p.updatedAt=new Date().toISOString();}}
 if(t==="tripEdit"){const tr=db.trips.find(x=>x.id===state.modal.editId);if(tr){tr.title=title;tr.destination=val("fDestination");tr.startDate=val("fDate");tr.endDate=val("fEndDate");tr.note=val("fNote");}}
@@ -2342,7 +2576,9 @@ function checkReminders(){
  if(!db.settings.notifications||!("Notification"in window)||Notification.permission!=="granted")return;
  const now=new Date();
  for(const r of reminderItems()){
-   const age=now-r.trigger;
+   if(localStorage.getItem(reminderDismissKey(r.key)))continue;
+   const trigger=effectiveReminderTrigger(r);
+   const age=now-trigger;
    if(age<0||age>7*86400000)continue;
    const key="fh-notified-"+r.key;
    if(localStorage.getItem(key))continue;
@@ -2378,7 +2614,12 @@ if("serviceWorker" in navigator){
   });
 }
 
+window.addEventListener("error",e=>{
+  if(e.error&&document.getElementById("root")&&!document.getElementById("root").innerHTML.trim())renderCrash(e.error);
+});
+window.addEventListener("unhandledrejection",e=>console.warn("FamilienHub async:",e.reason));
 window.state=state;
+createRestorePoint("start",false);
 const recoveryDetected=detectPasswordRecovery();
 if(!recoveryDetected&&cloud.enabled&&cloud.accessToken){bootstrapCloud()}
 document.addEventListener("click",e=>{
