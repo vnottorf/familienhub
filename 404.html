@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v9</title>
+<title>FamilienHub v9.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -172,6 +172,18 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .school-kind{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:10px;background:#e9eef6;color:#60718b}
 .myday-person{display:flex;align-items:center;gap:9px;margin-bottom:10px}
 @media(max-width:620px){.status-grid{grid-template-columns:1fr}.capture-choice{grid-template-columns:1fr 1fr}}
+.undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:90;width:min(520px,calc(100% - 28px));background:#3d342f;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 16px 40px #0004}
+.undo-toast .grow{font-size:13px}
+.undo-toast button{border:0;border-radius:11px;background:#fff;color:#3d342f;padding:8px 11px;font-weight:800}
+.template-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.template-btn{border:1px solid var(--line);background:#fff;border-radius:15px;padding:13px;text-align:left;color:var(--ink)}
+.template-btn b{display:block;margin-bottom:4px}
+.edit-actions{display:flex;gap:6px;flex-wrap:wrap}
+.check-actions{display:flex;gap:5px;margin-left:auto}
+.check-actions button{border:0;background:#f0e5da;border-radius:9px;padding:6px 8px;color:var(--ink)}
+.auto-shop{display:inline-flex;gap:6px;align-items:center;border-radius:999px;background:#e8efe7;color:#587058;padding:5px 8px;font-size:10px;font-weight:800}
+@media(max-width:620px){.template-grid{grid-template-columns:1fr}}
+
 
 
 .swipe-hint{font-size:11px;color:var(--muted);margin-top:-4px;margin-bottom:10px}
@@ -323,7 +335,7 @@ for(const r of db.routines){
   if(!r.interval)r.interval=1;
 }
 for(const s of db.school){if(s.done===undefined)s.done=false}
-for(const p of db.pantry){if(!p.level)p.level="ok"}
+for(const p of db.pantry){if(!p.level)p.level="ok";if(p.autoShop===undefined)p.autoShop=false}
 for(const t of db.trips){if(!Array.isArray(t.checklist))t.checklist=[]}
 
 for(const m of db.meals){
@@ -334,7 +346,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:""};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -945,7 +957,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v9</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v9.1</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -1029,14 +1041,11 @@ let swipeClickBlockedUntil=0;
 function swipeClickOk(){return Date.now()>swipeClickBlockedUntil}
 
 function swipeQuickMeta(type,id){
-  if(type==="task"){
-    const x=db.tasks.find(v=>v.id===id);
-    return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null;
-  }
-  if(type==="shop"){
-    const x=db.shopping.find(v=>v.id===id);
-    return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null;
-  }
+  if(type==="task"){const x=db.tasks.find(v=>v.id===id);return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null}
+  if(type==="shop"){const x=db.shopping.find(v=>v.id===id);return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null}
+  if(type==="routine"){const x=db.routines.find(v=>v.id===id);return x?{label:"✓ Erledigt",undo:false}:null}
+  if(type==="school"){const x=db.school.find(v=>v.id===id);return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null}
+  if(type==="pantry"){const x=db.pantry.find(v=>v.id===id);return x&&["low","empty"].includes(x.level)?{label:"🛒 Einkauf",undo:false}:null}
   return null;
 }
 function swipeWrap(type,id,content){
@@ -1050,6 +1059,9 @@ function swipeWrap(type,id,content){
 function swipeQuick(type,id){
   if(type==="task"){toggleTask(id);return}
   if(type==="shop"){toggleShop(id);return}
+  if(type==="routine"){completeRoutine(id);return}
+  if(type==="school"){toggleSchool(id);return}
+  if(type==="pantry"){pantryToShopping(id);return}
 }
 function closeOtherSwipeRows(except){
   document.querySelectorAll(".swipe-item.swipe-open,.swipe-item.swipe-action-open").forEach(el=>{
@@ -1129,76 +1141,56 @@ function initSwipeRows(){
   });
 }
 
+let undoDeleteTimer=null;
+
+function deleteMap(type){
+  return {
+    task:"tasks",shop:"shopping",event:"events",inbox:"inbox",meal:"meals",
+    occasion:"occasions",routine:"routines",school:"school",pantry:"pantry",trip:"trips",note:"notes"
+  }[type]||null;
+}
+function deleteLabel(type,item){
+  return item?.title||item?.name||item?.text||({task:"Aufgabe",shop:"Einkauf",event:"Termin",note:"Pinnwand"}[type]||"Eintrag");
+}
+async function finalizeUndoDelete(){
+  const u=state.undoDelete;
+  if(!u)return;
+  clearTimeout(undoDeleteTimer);undoDeleteTimer=null;
+  if(u.type==="note"){
+    for(const a of (u.item.attachments||[])){
+      try{await deleteStorageObject(a.path)}catch(e){console.warn("Datei-Cleanup:",e)}
+    }
+  }
+  const label=deleteLabel(u.type,u.item);
+  addActivity("🗑️",`hat „${label}“ gelöscht.`,u.type,u.item.id);
+  state.undoDelete=null;
+  save();render();
+}
+function undoToastHTML(){
+  const u=state.undoDelete;if(!u)return "";
+  return `<div class="undo-toast"><div class="grow">„${esc(deleteLabel(u.type,u.item))}“ gelöscht</div><button onclick="undoLastDelete()">Rückgängig</button></div>`;
+}
+function undoLastDelete(){
+  const u=state.undoDelete;if(!u)return;
+  clearTimeout(undoDeleteTimer);undoDeleteTimer=null;
+  const arr=db[u.collection];
+  if(Array.isArray(arr)&&!arr.some(x=>x.id===u.item.id)){
+    arr.splice(Math.min(u.index,arr.length),0,u.item);
+  }
+  state.undoDelete=null;
+  save();render();
+}
 async function swipeDelete(type,id){
   if(!requireGeneralEdit())return;
-
-  if(type==="note"){
-    const n=db.notes.find(x=>x.id===id);
-    if(!n)return;
-    // If files exist, remove them from private storage too.
-    for(const a of (n.attachments||[])){
-      try{await deleteStorageObject(a.path)}catch(e){console.warn(e)}
-    }
-    db.notes=db.notes.filter(x=>x.id!==id);
-    addActivity("🗑️",`hat „${n.title||"Pinnwand"}“ gelöscht.`,"note",id);
-  }else{
-    const map={
-      task:"tasks",
-      shop:"shopping",
-      event:"events",
-      inbox:"inbox",
-      meal:"meals",
-      occasion:"occasions",
-      routine:"routines",
-      school:"school",
-      pantry:"pantry",
-      trip:"trips"
-    };
-    const collection=map[type];
-    if(!collection)return;
-    const item=db[collection]?.find(x=>x.id===id);
-    db[collection]=db[collection].filter(x=>x.id!==id);
-    const label=item?.title||item?.name||item?.text||"Eintrag";
-    const icon={task:"✓",shop:"🛒",event:"📅",inbox:"📥",meal:"🍲",occasion:"🎉",routine:"🔁",school:"🎒",pantry:"🧺",trip:"🧳"}[type]||"🗑️";
-    addActivity("🗑️",`hat „${label}“ gelöscht.`,type,id);
-  }
-  state.itemDetail=null;
-  state.noteDetailId=null;
-  save();
-  render();
-}
-
-
-function isTaskOverdue(t){
-  if(!t||t.done||!t.due)return false;
-  const d=new Date(`${t.due}T${t.time||"23:59"}`);
-  return d.getTime()<Date.now();
-}
-function taskSortValue(t){
-  const due=new Date(`${t.due||"2999-12-31"}T${t.time||"23:59"}`).getTime();
-  const pr={high:0,med:1,low:2}[t.prio]??3;
-  return [isTaskOverdue(t)?0:1,due,pr];
-}
-function sortedOpenTasks(items=db.tasks){
-  return items.filter(t=>!t.done).sort((a,b)=>{
-    const A=taskSortValue(a),B=taskSortValue(b);
-    return A[0]-B[0]||A[1]-B[1]||A[2]-B[2]||String(a.title).localeCompare(String(b.title),"de");
-  });
-}
-function taskDueLabel(t){
-  return `${fmtDate(t.due)} ${esc(t.time||"")}${isTaskOverdue(t)?` <span class="overdue-badge">überfällig</span>`:""}`;
-}
-function shiftTaskDue(id,mode){
-  if(!requireGeneralEdit())return;
-  const t=db.tasks.find(x=>x.id===id);if(!t)return;
-  const d=new Date();
-  if(mode==="today"){}
-  else if(mode==="tomorrow")d.setDate(d.getDate()+1);
-  else if(mode==="week")d.setDate(d.getDate()+7);
-  t.due=d.toISOString().slice(0,10);
-  if(t.done){t.done=false;t.completedAt=null}
-  addActivity("📆",`hat die Aufgabe „${t.title}“ auf ${mode==="today"?"heute":mode==="tomorrow"?"morgen":"in eine Woche"} verschoben.`,"task",t.id);
+  const collection=deleteMap(type);if(!collection)return;
+  const arr=db[collection],index=arr.findIndex(x=>x.id===id);if(index<0)return;
+  if(state.undoDelete)await finalizeUndoDelete();
+  const item=structuredClone(arr[index]);
+  arr.splice(index,1);
+  state.itemDetail=null;state.noteDetailId=null;
+  state.undoDelete={type,collection,item,index};
   save();render();
+  undoDeleteTimer=setTimeout(()=>finalizeUndoDelete(),8000);
 }
 
 function taskRow(t){return swipeWrap("task",t.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title ${isTaskOverdue(t)?"overdue":""}">${esc(t.title)}</div><div class="meta">${taskDueLabel(t)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`)}
@@ -1340,7 +1332,9 @@ function pantryLevelLabel(l){return ({full:"Voll",ok:"Okay",low:"Knapp",empty:"L
 function setPantryLevel(id,level){
   if(!requireGeneralEdit())return;
   const p=db.pantry.find(x=>x.id===id);if(!p)return;
-  p.level=level;p.updatedAt=new Date().toISOString();save();render();
+  p.level=level;p.updatedAt=new Date().toISOString();
+  if(p.autoShop&&["low","empty"].includes(level)){pantryToShopping(id);return}
+  save();render();
 }
 function pantryToShopping(id){
   if(!requireGeneralEdit())return;
@@ -1468,26 +1462,65 @@ function weekView(){
     ...x.meals.map(m=>`<div class="week-line"><span>🍲</span><div><div class="title">${esc(m.title)}</div><div class="meta">Essensplan</div></div></div>`)
   ].join("")||'<div class="meta">Noch nichts geplant.</div>'}</div>`).join("")}`;
 }
+
+function editModule(type,id){
+  if(!requireGeneralEdit())return;
+  if(type==="document"&&!canManageFamily())return;
+  state.modal={type:type+"Edit",editId:id,values:{}};
+  render();
+}
+function schoolToTask(id){
+  if(!requireGeneralEdit())return;
+  const s=db.school.find(x=>x.id===id);if(!s)return;
+  const tid="t"+Date.now();
+  db.tasks.push({id:tid,title:s.title,due:s.date||todayISO(),time:s.time||"18:00",who:s.child||currentDisplayName(),prio:s.kind==="Klassenarbeit"?"high":"med",repeat:"none",remindMinutes:1440,note:[s.subject,s.note].filter(Boolean).join(" · "),done:false,completedAt:null,comments:[]});
+  addActivity("🎒",`hat „${s.title}“ als Aufgabe übernommen.`,"task",tid);
+  save();render();
+}
+function removeTripCheck(tripId,itemId){
+  if(!requireGeneralEdit())return;
+  const t=db.trips.find(x=>x.id===tripId);if(!t)return;
+  t.checklist=(t.checklist||[]).filter(x=>x.id!==itemId);save();render();
+}
+function addRoutineTemplate(title,frequency,interval){
+  if(!requireGeneralEdit())return;
+  const me=currentDisplayName(),id="r"+Date.now()+"-"+Math.random().toString(36).slice(2,5);
+  db.routines.push({id,title,who:me,frequency,interval,nextDate:todayISO(),time:"18:00",note:"",active:true,lastDone:""});
+  addActivity("🔁",`hat die Routine „${title}“ aus einer Vorlage angelegt.`,"routine",id);
+  save();state.modal=null;render();
+}
+function addPantryTemplate(name,category){
+  if(!requireGeneralEdit())return;
+  if(db.pantry.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert("Dieser Vorrat ist schon angelegt.");
+  const id="p"+Date.now()+"-"+Math.random().toString(36).slice(2,5);
+  db.pantry.push({id,title:name,name,qty:"1×",category,level:"ok",note:"",autoShop:false,updatedAt:new Date().toISOString()});
+  addActivity("🧺",`hat „${name}“ aus einer Vorlage zu den Vorräten hinzugefügt.`,"pantry",id);
+  save();state.modal=null;render();
+}
+
 function routinesView(){
-  return `<div class="section-title"><div><h2>Routinen</h2><div class="small">Wiederkehrende Dinge, die nicht jedes Mal neu angelegt werden müssen.</div></div><button class="primary" onclick="openModal('routine')">+ Routine</button></div>
-  <section class="card s12">${sortedRoutines().map(r=>`<div class="row ${daysUntil(r.nextDate)<=0?"routine-due":"routine-ok"}"><div class="grow"><div class="title">${esc(r.title)}${daysUntil(r.nextDate)<0?` <span class="overdue-badge">überfällig</span>`:""}</div><div class="meta">${esc(r.who)} · ${fmtDate(r.nextDate)} · ${esc(routineLabel(r))}${r.note?` · ${esc(r.note)}`:""}</div></div><button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button><button class="ghost" onclick="setRoutineActive('${r.id}',false)">Pause</button><button class="danger" onclick="removeItem('routines','${r.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Routinen angelegt.</div>'}</section>
-  ${db.routines.some(r=>r.active===false)?`<section class="card s12" style="margin-top:12px"><h3>Pausiert</h3>${db.routines.filter(r=>r.active===false).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.who)}</div></div><button class="ghost" onclick="setRoutineActive('${r.id}',true)">Aktivieren</button></div>`).join("")}</section>`:""}`;
+  return `<div class="section-title"><div><h2>Routinen</h2><div class="small">Wiederkehrende Dinge, die nicht jedes Mal neu angelegt werden müssen.</div></div><div class="edit-actions"><button class="ghost" onclick="openModal('routineTemplates')">✨ Vorlagen</button><button class="primary" onclick="openModal('routine')">+ Routine</button></div></div>
+  <div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div>
+  <section class="card s12">${sortedRoutines().map(r=>swipeWrap("routine",r.id,`<div class="row ${daysUntil(r.nextDate)<=0?"routine-due":"routine-ok"}"><div class="grow"><div class="title">${esc(r.title)}${daysUntil(r.nextDate)<0?` <span class="overdue-badge">überfällig</span>`:""}</div><div class="meta">${esc(r.who)} · ${fmtDate(r.nextDate)} · ${esc(routineLabel(r))}${r.note?` · ${esc(r.note)}`:""}</div></div><div class="edit-actions"><button class="primary" onclick="event.stopPropagation();completeRoutine('${r.id}')">Erledigt</button><button class="ghost" onclick="event.stopPropagation();editModule('routine','${r.id}')">Bearbeiten</button><button class="ghost" onclick="event.stopPropagation();setRoutineActive('${r.id}',false)">Pause</button></div></div>`)).join("")||'<div class="notice">Noch keine Routinen angelegt.</div>'}</section>
+  ${db.routines.some(r=>r.active===false)?`<section class="card s12" style="margin-top:12px"><h3>Pausiert</h3>${db.routines.filter(r=>r.active===false).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.who)}</div></div><button class="ghost" onclick="editModule('routine','${r.id}')">Bearbeiten</button><button class="ghost" onclick="setRoutineActive('${r.id}',true)">Aktivieren</button></div>`).join("")}</section>`:""}`;
 }
 function schoolView(){
   const upcoming=schoolSorted();
   return `<div class="section-title"><div><h2>Schule</h2><div class="small">Hausaufgaben, Klassenarbeiten, Material, Elternabende und Ausflüge.</div></div><button class="primary" onclick="openModal('school')">+ Schule</button></div>
-  <section class="card s12">${upcoming.map(s=>`<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleSchool('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title ${!s.done&&s.date<todayISO()?"overdue":""}">${esc(s.title)}</div><div class="meta"><span class="school-kind">${esc(s.kind)}</span> ${fmtDate(s.date)} ${esc(s.time||"")} · ${esc(s.child)}${s.subject?` · ${esc(s.subject)}`:""}${s.note?` · ${esc(s.note)}`:""}</div></div><button class="danger" onclick="removeItem('school','${s.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Schulsachen eingetragen.</div>'}</section>`;
+  <div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div>
+  <section class="card s12">${upcoming.map(s=>swipeWrap("school",s.id,`<div class="row"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleSchool('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title ${!s.done&&s.date<todayISO()?"overdue":""}">${esc(s.title)}</div><div class="meta"><span class="school-kind">${esc(s.kind)}</span> ${fmtDate(s.date)} ${esc(s.time||"")} · ${esc(s.child)}${s.subject?` · ${esc(s.subject)}`:""}${s.note?` · ${esc(s.note)}`:""}</div></div><div class="edit-actions"><button class="ghost" onclick="event.stopPropagation();schoolToTask('${s.id}')">→ Aufgabe</button><button class="ghost" onclick="event.stopPropagation();editModule('school','${s.id}')">Bearbeiten</button></div></div>`)).join("")||'<div class="notice">Noch keine Schulsachen eingetragen.</div>'}</section>`;
 }
 function pantryView(){
   const order={empty:0,low:1,ok:2,full:3};
   const xs=[...db.pantry].sort((a,b)=>(order[a.level]??9)-(order[b.level]??9)||a.name.localeCompare(b.name,"de"));
-  return `<div class="section-title"><div><h2>Vorräte</h2><div class="small">Nur die Dinge im Blick behalten, die wirklich öfter ausgehen.</div></div><button class="primary" onclick="openModal('pantry')">+ Vorrat</button></div>
-  <section class="card s12">${xs.map(p=>`<div class="row"><div class="grow"><div class="title">${esc(p.name)} <span class="level level-${p.level}">${pantryLevelLabel(p.level)}</span></div><div class="meta">${esc(p.qty||"")} ${p.category?`· ${esc(p.category)}`:""}${p.note?` · ${esc(p.note)}`:""}</div><div class="status-actions"><button onclick="setPantryLevel('${p.id}','full')">Voll</button><button onclick="setPantryLevel('${p.id}','ok')">Okay</button><button onclick="setPantryLevel('${p.id}','low')">Knapp</button><button onclick="setPantryLevel('${p.id}','empty')">Leer</button></div></div>${["low","empty"].includes(p.level)?`<button class="primary" onclick="pantryToShopping('${p.id}')">🛒 Einkauf</button>`:""}<button class="danger" onclick="removeItem('pantry','${p.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Vorräte beobachtet.</div>'}</section>`;
+  return `<div class="section-title"><div><h2>Vorräte</h2><div class="small">Nur die Dinge im Blick behalten, die wirklich öfter ausgehen.</div></div><div class="edit-actions"><button class="ghost" onclick="openModal('pantryTemplates')">✨ Vorlagen</button><button class="primary" onclick="openModal('pantry')">+ Vorrat</button></div></div>
+  <div class="swipe-hint">Bei knapp/leer: → nach rechts = auf Einkauf · ← nach links = löschen</div>
+  <section class="card s12">${xs.map(p=>swipeWrap("pantry",p.id,`<div class="row"><div class="grow"><div class="title">${esc(p.name)} <span class="level level-${p.level}">${pantryLevelLabel(p.level)}</span> ${p.autoShop?'<span class="auto-shop">⚡ Auto-Einkauf</span>':""}</div><div class="meta">${esc(p.qty||"")} ${p.category?`· ${esc(p.category)}`:""}${p.note?` · ${esc(p.note)}`:""}</div><div class="status-actions"><button onclick="event.stopPropagation();setPantryLevel('${p.id}','full')">Voll</button><button onclick="event.stopPropagation();setPantryLevel('${p.id}','ok')">Okay</button><button onclick="event.stopPropagation();setPantryLevel('${p.id}','low')">Knapp</button><button onclick="event.stopPropagation();setPantryLevel('${p.id}','empty')">Leer</button></div></div><div class="edit-actions">${["low","empty"].includes(p.level)?`<button class="primary" onclick="event.stopPropagation();pantryToShopping('${p.id}')">🛒 Einkauf</button>`:""}<button class="ghost" onclick="event.stopPropagation();editModule('pantry','${p.id}')">Bearbeiten</button></div></div>`)).join("")||'<div class="notice">Noch keine Vorräte beobachtet.</div>'}</section>`;
 }
 function tripsView(){
   const xs=[...db.trips].sort((a,b)=>String(a.startDate).localeCompare(String(b.startDate)));
   return `<div class="section-title"><div><h2>Urlaub & Reisen</h2><div class="small">Reise, Checkliste und Vorbereitung an einem Ort.</div></div><button class="primary" onclick="openModal('trip')">+ Reise</button></div>
-  ${xs.map(t=>{const p=tripProgress(t);return `<div class="trip-card"><div class="section-head"><div><div class="title">🧳 ${esc(t.title)}</div><div class="meta">${esc(t.destination||"")} · ${fmtDate(t.startDate)} bis ${fmtDate(t.endDate)}</div></div><button class="danger" onclick="removeItem('trips','${t.id}')">Löschen</button></div>${t.note?`<div class="detail-body">${esc(t.note)}</div>`:""}<div class="trip-progress"><i style="width:${p.pct}%"></i></div><div class="meta">${p.done}/${p.total} vorbereitet</div>${(t.checklist||[]).map(i=>`<label class="check-line"><input type="checkbox" ${i.done?"checked":""} onchange="toggleTripCheck('${t.id}','${i.id}')"><span>${esc(i.text)}</span></label>`).join("")}<div class="toolbar" style="margin-top:9px"><button class="ghost" onclick="addTripCheck('${t.id}')">+ Checklistenpunkt</button><button class="primary" onclick="createTripTasks('${t.id}')">Offenes → Aufgaben</button></div></div>`}).join("")||'<div class="notice">Noch keine Reise angelegt.</div>'}`;
+  ${xs.map(t=>{const p=tripProgress(t);return `<div class="trip-card"><div class="section-head"><div><div class="title">🧳 ${esc(t.title)}</div><div class="meta">${esc(t.destination||"")} · ${fmtDate(t.startDate)} bis ${fmtDate(t.endDate)}</div></div><div class="edit-actions"><button class="ghost" onclick="editModule('trip','${t.id}')">Bearbeiten</button><button class="danger" onclick="swipeDelete('trip','${t.id}')">Löschen</button></div></div>${t.note?`<div class="detail-body">${esc(t.note)}</div>`:""}<div class="trip-progress"><i style="width:${p.pct}%"></i></div><div class="meta">${p.done}/${p.total} vorbereitet</div>${(t.checklist||[]).map(i=>`<div class="check-line"><input type="checkbox" ${i.done?"checked":""} onchange="toggleTripCheck('${t.id}','${i.id}')"><span class="grow">${esc(i.text)}</span><div class="check-actions"><button onclick="removeTripCheck('${t.id}','${i.id}')">✕</button></div></div>`).join("")}<div class="toolbar" style="margin-top:9px"><button class="ghost" onclick="addTripCheck('${t.id}')">+ Checklistenpunkt</button><button class="primary" onclick="createTripTasks('${t.id}')">Offenes → Aufgaben</button></div></div>`}).join("")||'<div class="notice">Noch keine Reise angelegt.</div>'}`;
 }
 function familyStatusView(){
   const statuses=["Zuhause","Schule","Arbeit","Unterwegs","Frei","Nicht stören"];
@@ -1552,10 +1585,9 @@ function documentsView(){
   const parent=canManageFamily();
   const xs=[...db.documents].sort((a,b)=>String(a.expires||"9999").localeCompare(String(b.expires||"9999")));
   return `<div class="section-title"><div><h2>Dokumente</h2><div class="small">Private Familienunterlagen mit Ablaufdatum.</div></div>${parent?`<button class="primary" onclick="openModal('document')">+ Dokument</button>`:""}</div>
-  <section class="card s12">${xs.map(d=>`<div class="doc-row"><div class="doc-icon">${(d.type||"").includes("pdf")?"📄":"🖼️"}</div><div class="grow"><div class="title">${esc(d.title)}</div><div class="meta">${esc(d.category||"Dokument")}${d.owner?` · ${esc(d.owner)}`:""}${d.expires?` · <span class="${daysUntil(d.expires)<=60?"expiring":""}">gültig bis ${fmtDate(d.expires)}</span>`:""}${d.note?` · ${esc(d.note)}`:""}</div></div><button class="ghost" onclick="openDocument('${d.id}')">Öffnen</button>${parent?`<button class="danger" onclick="deleteDocument('${d.id}')">Löschen</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Dokumente abgelegt.</div>'}</section>
+  <section class="card s12">${xs.map(d=>`<div class="doc-row"><div class="doc-icon">${(d.type||"").includes("pdf")?"📄":"🖼️"}</div><div class="grow"><div class="title">${esc(d.title)}</div><div class="meta">${esc(d.category||"Dokument")}${d.owner?` · ${esc(d.owner)}`:""}${d.expires?` · <span class="${daysUntil(d.expires)<=60?"expiring":""}">gültig bis ${fmtDate(d.expires)}</span>`:""}${d.note?` · ${esc(d.note)}`:""}</div></div><button class="ghost" onclick="openDocument('${d.id}')">Öffnen</button>${parent?`<button class="ghost" onclick="editModule('document','${d.id}')">Bearbeiten</button><button class="danger" onclick="deleteDocument('${d.id}')">Löschen</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Dokumente abgelegt.</div>'}</section>
   ${!parent?`<div class="notice" style="margin-top:12px">Dokumente können nur von Eltern hinzugefügt oder gelöscht werden.</div>`:""}`;
 }
-
 function dashboardCard(key,ctx){
   if(key==="smart")return `<section class="card s7"><div class="section-head"><h3>✨ Was jetzt wichtig ist</h3><button class="card-link" onclick="go('week')">Woche →</button></div>${smartSuggestionsHTML(5)}</section>`;
   if(key==="myday"){
@@ -1956,7 +1988,7 @@ function mealsView(){
  return `<div class="section-title"><div><h2>Essensplan</h2><div class="small">Gerichte planen und Zutaten direkt auf die Einkaufsliste setzen.</div></div><button class="primary" onclick="openModal('meal')">+ Gericht</button></div>
  <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
  <div class="swipe-hint">← Gericht nach links wischen zum Löschen</div>
- <section class="card s12">${sortedMeals().map(m=>swipeWrap("meal",m.id,`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="event.stopPropagation();addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}</div></div>`)).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
+ <section class="card s12">${sortedMeals().map(m=>swipeWrap("meal",m.id,`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="event.stopPropagation();addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="ghost" onclick="event.stopPropagation();editModule('meal','${m.id}')">Bearbeiten</button></div></div>`)).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
 }
 function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section>${db.ha.connected&&(db.ha.scenes||[]).length?`<section class="card s12"><h3>🎬 Szenen</h3><div class="ha-scenes">${db.ha.scenes.map(s=>`<button class="ha-scene" onclick="activateHAScene('${s.entity_id}')">▶ ${esc(s.name)}</button>`).join("")}</div></section>`:""}<section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
@@ -2203,13 +2235,21 @@ asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeh
 meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`,
 routine:`<div class="full"><label>Routine</label><input id="fTitle" placeholder="z. B. Bettwäsche wechseln"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Rhythmus</label><select id="fFrequency"><option value="daily">Täglich</option><option value="weekly" selected>Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="1"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 school:`<div class="full"><label>Eintrag</label><input id="fTitle" placeholder="z. B. Mathearbeit Kapitel 4"></div><div><label>Kind</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Art</label><select id="fKind"><option>Hausaufgabe</option><option>Klassenarbeit</option><option>Material</option><option>Ausflug</option><option>Elternabend</option><option>Sonstiges</option></select></div><div><label>Fach</label><input id="fSubject" placeholder="z. B. Mathe"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit optional</label><input id="fTime" type="time"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
-pantry:`<div class="full"><label>Vorrat</label><input id="fTitle" placeholder="z. B. Spülmaschinentabs"></div><div><label>Menge</label><input id="fQty" placeholder="z. B. 1 Pack"></div><div><label>Kategorie</label><input id="fCat" placeholder="Haushalt"></div><div><label>Stand</label><select id="fLevel"><option value="full">Voll</option><option value="ok" selected>Okay</option><option value="low">Knapp</option><option value="empty">Leer</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+pantry:`<div class="full"><label>Vorrat</label><input id="fTitle" placeholder="z. B. Spülmaschinentabs"></div><div><label>Menge</label><input id="fQty" placeholder="z. B. 1 Pack"></div><div><label>Kategorie</label><input id="fCat" placeholder="Haushalt"></div><div><label>Stand</label><select id="fLevel"><option value="full">Voll</option><option value="ok" selected>Okay</option><option value="low">Knapp</option><option value="empty">Leer</option></select></div><div><label>Bei knapp/leer</label><select id="fAutoShop"><option value="0">Nur anzeigen</option><option value="1">Automatisch auf Einkauf</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 trip:`<div class="full"><label>Reise</label><input id="fTitle" placeholder="z. B. Sommerurlaub Italien"></div><div class="full"><label>Ziel</label><input id="fDestination"></div><div><label>Von</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Bis</label><input id="fEndDate" type="date" value="${plusDays(37)}"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Start-Checkliste</label><textarea id="fChecklist" placeholder="Koffer packen&#10;Reisepässe prüfen&#10;Pflanzen versorgen&#10;Müll rausbringen"></textarea></div>`,
 document:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Reisepass Vlad"></div><div><label>Kategorie</label><select id="fCategory"><option>Ausweis</option><option>Versicherung</option><option>Garantie</option><option>Rechnung</option><option>Schule</option><option>Haus</option><option>Fahrzeug</option><option>Sonstiges</option></select></div><div><label>Für wen / was?</label><input id="fOwner" placeholder="z. B. Vlad oder Auto"></div><div><label>Gültig bis optional</label><input id="fDate" type="date"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full media-picker"><label>📎 Datei</label><input id="fDocument" type="file" accept="image/*,application/pdf"><div class="media-help">Bild oder PDF, maximal 5 MB. Privat in Supabase gespeichert.</div></div>`,
+routineEdit:`${(()=>{const r=db.routines.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Routine</label><input id="fTitle" value="${esc(r.title||"")}"></div><div><label>Zuständig</label><select id="fPerson">${db.family.map(p=>`<option ${r.who===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${esc(r.nextDate||todayISO())}"></div><div><label>Rhythmus</label><select id="fFrequency">${[["daily","Täglich"],["weekly","Wöchentlich"],["monthly","Monatlich"],["yearly","Jährlich"]].map(([v,l])=>`<option value="${v}" ${r.frequency===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="${Number(r.interval||1)}"></div><div><label>Zeit</label><input id="fTime" type="time" value="${esc(r.time||"18:00")}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(r.note||"")}</textarea></div>`})()}`,
+schoolEdit:`${(()=>{const s=db.school.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Eintrag</label><input id="fTitle" value="${esc(s.title||"")}"></div><div><label>Kind</label><select id="fPerson">${db.family.map(p=>`<option ${s.child===p.name?"selected":""}>${esc(p.name)}</option>`).join("")}</select></div><div><label>Art</label><select id="fKind">${["Hausaufgabe","Klassenarbeit","Material","Ausflug","Elternabend","Sonstiges"].map(k=>`<option ${s.kind===k?"selected":""}>${k}</option>`).join("")}</select></div><div><label>Fach</label><input id="fSubject" value="${esc(s.subject||"")}"></div><div><label>Datum</label><input id="fDate" type="date" value="${esc(s.date||todayISO())}"></div><div><label>Zeit optional</label><input id="fTime" type="time" value="${esc(s.time||"")}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(s.note||"")}</textarea></div>`})()}`,
+pantryEdit:`${(()=>{const p=db.pantry.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Vorrat</label><input id="fTitle" value="${esc(p.name||p.title||"")}"></div><div><label>Menge</label><input id="fQty" value="${esc(p.qty||"")}"></div><div><label>Kategorie</label><input id="fCat" value="${esc(p.category||"")}"></div><div><label>Stand</label><select id="fLevel">${[["full","Voll"],["ok","Okay"],["low","Knapp"],["empty","Leer"]].map(([v,l])=>`<option value="${v}" ${p.level===v?"selected":""}>${l}</option>`).join("")}</select></div><div><label>Bei knapp/leer</label><select id="fAutoShop"><option value="0" ${!p.autoShop?"selected":""}>Nur anzeigen</option><option value="1" ${p.autoShop?"selected":""}>Automatisch auf Einkauf</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(p.note||"")}</textarea></div>`})()}`,
+tripEdit:`${(()=>{const t=db.trips.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Reise</label><input id="fTitle" value="${esc(t.title||"")}"></div><div class="full"><label>Ziel</label><input id="fDestination" value="${esc(t.destination||"")}"></div><div><label>Von</label><input id="fDate" type="date" value="${esc(t.startDate||todayISO())}"></div><div><label>Bis</label><input id="fEndDate" type="date" value="${esc(t.endDate||todayISO())}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(t.note||"")}</textarea></div></div>`})()}`,
+documentEdit:`${(()=>{const d=db.documents.find(x=>x.id===state.modal.editId)||{};return `<div class="full"><label>Titel</label><input id="fTitle" value="${esc(d.title||"")}"></div><div><label>Kategorie</label><select id="fCategory">${["Ausweis","Versicherung","Garantie","Rechnung","Schule","Haus","Fahrzeug","Sonstiges"].map(k=>`<option ${d.category===k?"selected":""}>${k}</option>`).join("")}</select></div><div><label>Für wen / was?</label><input id="fOwner" value="${esc(d.owner||"")}"></div><div><label>Gültig bis optional</label><input id="fDate" type="date" value="${esc(d.expires||"")}"></div><div class="full"><label>Notiz</label><textarea id="fNote">${esc(d.note||"")}</textarea></div><div class="full"><div class="notice">Die gespeicherte Datei bleibt unverändert. Hier bearbeitest du nur die Beschreibung.</div></div>`})()}`,
+mealEdit:`${(()=>{const m=db.meals.find(x=>x.id===state.modal.editId)||{};return `<div><label>Tag</label><input id="fDay" value="${esc(m.day||"")}"></div><div><label>Gericht</label><input id="fTitle" value="${esc(m.title||"")}"></div><div class="full"><label>Zutaten</label><textarea id="fIngredients">${esc((m.ingredients||[]).join(", "))}</textarea></div>`})()}`,
+routineTemplates:`<div class="full"><div class="template-grid"><button type="button" class="template-btn" onclick="addRoutineTemplate('Mülltonne rausstellen','weekly',1)"><b>🗑️ Mülltonne</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Bettwäsche wechseln','weekly',2)"><b>🛏️ Bettwäsche</b>alle 2 Wochen</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Handtücher wechseln','weekly',1)"><b>🧺 Handtücher</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Pflanzen gießen','weekly',1)"><b>🌿 Pflanzen</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Kühlschrank prüfen','weekly',1)"><b>🧊 Kühlschrank</b>wöchentlich</button><button type="button" class="template-btn" onclick="addRoutineTemplate('Rauchmelder prüfen','monthly',6)"><b>🚨 Rauchmelder</b>alle 6 Monate</button></div></div>`,
+pantryTemplates:`<div class="full"><div class="template-grid"><button type="button" class="template-btn" onclick="addPantryTemplate('Toilettenpapier','Haushalt')"><b>🧻 Toilettenpapier</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Spülmaschinentabs','Haushalt')"><b>🍽️ Spülmaschinentabs</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Waschmittel','Haushalt')"><b>🧺 Waschmittel</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Milch','Lebensmittel')"><b>🥛 Milch</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Eier','Lebensmittel')"><b>🥚 Eier</b></button><button type="button" class="template-btn" onclick="addPantryTemplate('Kaffee','Lebensmittel')"><b>☕ Kaffee</b></button></div></div>`,
 capture:`<div class="full"><label>Was möchtest du schnell erfassen?</label><textarea id="fCaptureText" placeholder="z. B. Waschmittel kaufen"></textarea></div><div class="full"><label>Wohin?</label><div class="capture-choice"><button type="button" onclick="quickCaptureCreate('task',val('fCaptureText'))">✓ Aufgabe</button><button type="button" onclick="quickCaptureCreate('shop',val('fCaptureText'))">🛒 Einkauf</button><button type="button" onclick="quickCaptureCreate('note',val('fCaptureText'))">📌 Pinnwand</button><button type="button" onclick="quickCaptureCreate('inbox',val('fCaptureText'))">📥 Inbox</button><button type="button" onclick="quickCaptureCreate('routine',val('fCaptureText'))">🔁 Routine</button><button type="button" onclick="quickCaptureCreate('school',val('fCaptureText'))">🎒 Schule</button></div></div>`
-}[t];const editing=t.endsWith("Edit");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${t==="capture"?"Schnellerfassung":editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button>${t==="capture"?"":`<button class="primary" onclick="saveModal('${t}')">Speichern</button>`}</div></div></div>`}
+}[t];const editing=t.endsWith("Edit"),template=t.endsWith("Templates");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${t==="capture"?"Schnellerfassung":template?"Vorlagen":editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">${template?"Schließen":"Abbrechen"}</button>${t==="capture"||template?"":`<button class="primary" onclick="saveModal('${t}')">Speichern</button>`}</div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-async function saveModal(t){if(["person","maintenance","asset","meter","hero","document"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit","capture"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
+async function saveModal(t){if(["person","maintenance","asset","meter","hero","document","documentEdit"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit","capture"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
 if(t==="note"){const body=val("fBody");let attachments=[];const files=document.getElementById("fAttachments")?.files;if(files?.length){try{attachments=await uploadNoteFiles(id,files)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments});}
 if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){const files=document.getElementById("fAttachments")?.files;if(files?.length){try{const added=await uploadNoteFiles(n.id,files);n.attachments=[...(n.attachments||[]),...added].slice(0,8)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}
 if(t==="eventEdit"){const e=db.events.find(x=>x.id===state.modal.editId);if(e){const owner=val("fCalendar")||"family";e.title=title;e.date=val("fDate");e.time=val("fTime");e.calendarOwner=owner;e.person=calendarName(owner)==="Familie"?"Alle":calendarName(owner);e.place=val("fPlace");e.remindMinutes=Number(val("fReminder")||0);e.note=val("fNote");}}
@@ -2222,9 +2262,15 @@ if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now
 if(t==="meter"){if(!requireParent())return;db.meterReadings.push({id:"mr"+Date.now(),kind:val("fKind"),value:title,unit:val("fUnit")||"",date:val("fDate")||todayISO()});}
 if(t==="routine")db.routines.push({id,title,who:val("fPerson"),frequency:val("fFrequency")||"weekly",interval:Number(val("fInterval")||1),nextDate:val("fDate")||todayISO(),time:val("fTime")||"18:00",note:val("fNote"),active:true,lastDone:""});
 if(t==="school")db.school.push({id,title,child:val("fPerson"),kind:val("fKind")||"Sonstiges",subject:val("fSubject"),date:val("fDate")||todayISO(),time:val("fTime"),note:val("fNote"),done:false});
-if(t==="pantry")db.pantry.push({id,title,name:title,qty:val("fQty"),category:val("fCat"),level:val("fLevel")||"ok",note:val("fNote"),updatedAt:new Date().toISOString()});
+if(t==="pantry")db.pantry.push({id,title,name:title,qty:val("fQty"),category:val("fCat"),level:val("fLevel")||"ok",note:val("fNote"),autoShop:val("fAutoShop")==="1",updatedAt:new Date().toISOString()});
 if(t==="trip"){const checks=val("fChecklist").split(/[\n]+/).map(x=>x.trim()).filter(Boolean).map((text,i)=>({id:"tc"+Date.now()+"-"+i,text,done:false}));db.trips.push({id,title,destination:val("fDestination"),startDate:val("fDate"),endDate:val("fEndDate"),note:val("fNote"),checklist:checks});}
 if(t==="document"){const file=document.getElementById("fDocument")?.files?.[0];if(!file)return alert("Bitte eine Datei auswählen.");let uploaded;try{uploaded=await uploadDocumentFile(id,file)}catch(e){return alert("Dokument-Upload fehlgeschlagen: "+e.message)}db.documents.push({id,title,category:val("fCategory")||"Sonstiges",owner:val("fOwner"),expires:val("fDate"),note:val("fNote"),...uploaded,created:new Date().toISOString(),createdBy:currentDisplayName()});}
+if(t==="routineEdit"){const r=db.routines.find(x=>x.id===state.modal.editId);if(r){r.title=title;r.who=val("fPerson");r.frequency=val("fFrequency");r.interval=Number(val("fInterval")||1);r.nextDate=val("fDate");r.time=val("fTime");r.note=val("fNote");}}
+if(t==="schoolEdit"){const s=db.school.find(x=>x.id===state.modal.editId);if(s){s.title=title;s.child=val("fPerson");s.kind=val("fKind");s.subject=val("fSubject");s.date=val("fDate");s.time=val("fTime");s.note=val("fNote");}}
+if(t==="pantryEdit"){const p=db.pantry.find(x=>x.id===state.modal.editId);if(p){p.title=title;p.name=title;p.qty=val("fQty");p.category=val("fCat");p.level=val("fLevel");p.autoShop=val("fAutoShop")==="1";p.note=val("fNote");p.updatedAt=new Date().toISOString();}}
+if(t==="tripEdit"){const tr=db.trips.find(x=>x.id===state.modal.editId);if(tr){tr.title=title;tr.destination=val("fDestination");tr.startDate=val("fDate");tr.endDate=val("fEndDate");tr.note=val("fNote");}}
+if(t==="documentEdit"){if(!requireParent())return;const d=db.documents.find(x=>x.id===state.modal.editId);if(d){d.title=title;d.category=val("fCategory");d.owner=val("fOwner");d.expires=val("fDate");d.note=val("fNote");}}
+if(t==="mealEdit"){const m=db.meals.find(x=>x.id===state.modal.editId);if(m){m.title=title;m.day=val("fDay");m.ingredients=val("fIngredients").split(/[\\n,]/).map(x=>x.trim()).filter(Boolean);}}
 if(t==="event")addActivity("📅",`hat den Termin „${title}“ erstellt.`,"event",id);
 if(t==="task")addActivity("✓",`hat die Aufgabe „${title}“ erstellt.`,"task",id);
 if(t==="shop")addActivity("🛒",`hat „${title}“ zur Einkaufsliste hinzugefügt.`,"shop",id);
@@ -2240,6 +2286,12 @@ if(t==="school")addActivity("🎒",`hat „${title}“ unter Schule eingetragen.
 if(t==="pantry")addActivity("🧺",`hat „${title}“ zu den Vorräten hinzugefügt.`,"pantry",id);
 if(t==="trip")addActivity("🧳",`hat die Reise „${title}“ angelegt.`,"trip",id);
 if(t==="document")addActivity("📂",`hat das Dokument „${title}“ abgelegt.`,"document",id);
+if(t==="routineEdit")addActivity("✏️",`hat die Routine „${title}“ bearbeitet.`,"routine",state.modal.editId);
+if(t==="schoolEdit")addActivity("✏️",`hat „${title}“ unter Schule bearbeitet.`,"school",state.modal.editId);
+if(t==="pantryEdit")addActivity("✏️",`hat den Vorrat „${title}“ bearbeitet.`,"pantry",state.modal.editId);
+if(t==="tripEdit")addActivity("✏️",`hat die Reise „${title}“ bearbeitet.`,"trip",state.modal.editId);
+if(t==="documentEdit")addActivity("✏️",`hat das Dokument „${title}“ bearbeitet.`,"document",state.modal.editId);
+if(t==="mealEdit")addActivity("✏️",`hat „${title}“ im Essensplan bearbeitet.`,"meal",state.modal.editId);
 save();state.modal=null;render()}
 let photoPersonId=null;
 function editPhoto(id){if(!requireParent())return;photoPersonId=id;document.getElementById("photoPicker").click()}
