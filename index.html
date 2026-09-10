@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v8.3</title>
+<title>FamilienHub v9</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -132,6 +132,47 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .task-quick-shift button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 11px;color:var(--ink)}
 .tomorrow-line{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-top:1px solid #eee2d8}
 .tomorrow-line:first-child{border-top:0}
+.module-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.module-tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;color:var(--ink)}
+.module-tab.active{background:#f0e2d6;border-color:#dfc2ad;font-weight:800}
+.suggestion{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid #eee2d8}
+.suggestion:first-child{border-top:0}
+.suggestion-icon{width:38px;height:38px;border-radius:13px;background:#f0e5da;display:grid;place-items:center;font-size:19px;flex:none}
+.suggestion-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.suggestion-actions button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 9px;color:var(--ink);font-size:11px}
+.routine-due{border-left:4px solid #c97a62}
+.routine-ok{border-left:4px solid #789276}
+.level{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
+.level-full{background:#e7f0e6;color:#547155}
+.level-ok{background:#edf0df;color:#6c734b}
+.level-low{background:#f8ecd8;color:#9a6c32}
+.level-empty{background:#f7e2df;color:#a34f45}
+.status-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:7px 10px;background:#fff}
+.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.status-card{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fffdf9}
+.status-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.status-actions button{border:1px solid var(--line);border-radius:999px;background:#fff;padding:6px 9px;font-size:11px;color:var(--ink)}
+.week-day{border:1px solid var(--line);border-radius:18px;background:#fff;padding:13px;margin-bottom:10px}
+.week-date{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.week-line{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #f0e6de}
+.week-line:first-of-type{border-top:0}
+.trip-card{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fffdf9;margin-bottom:10px}
+.trip-progress{height:7px;background:#eee2d8;border-radius:999px;overflow:hidden;margin:9px 0}
+.trip-progress i{display:block;height:100%;background:#7b9277}
+.check-line{display:flex;align-items:center;gap:8px;padding:7px 0}
+.check-line input{width:19px;height:19px}
+.doc-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #eee2d8}
+.doc-row:first-child{border-top:0}
+.doc-icon{width:42px;height:42px;border-radius:13px;background:#f0e5da;display:grid;place-items:center;font-size:21px}
+.expiring{color:#a34f45;font-weight:800}
+.capture-choice{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.capture-choice button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;color:var(--ink)}
+.ha-scenes{display:flex;gap:8px;flex-wrap:wrap}
+.ha-scene{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;color:var(--ink)}
+.school-kind{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:10px;background:#e9eef6;color:#60718b}
+.myday-person{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+@media(max-width:620px){.status-grid{grid-template-columns:1fr}.capture-choice{grid-template-columns:1fr 1fr}}
+
 
 .swipe-hint{font-size:11px;color:var(--muted);margin-top:-4px;margin-bottom:10px}
 .swipe-item .row{border-radius:0}
@@ -270,6 +311,21 @@ for(const n of db.notes){
   if(!n.reactions)n.reactions={};
   if(n.pinned===undefined)n.pinned=false;
 }
+
+for(const k of ["routines","school","pantry","trips","documents","familyStatus"]){
+  if(!Array.isArray(db[k]))db[k]=[];
+}
+for(const e of db.events){if(!Array.isArray(e.comments))e.comments=[]}
+for(const t of db.tasks){if(!Array.isArray(t.comments))t.comments=[]}
+for(const r of db.routines){
+  if(r.active===undefined)r.active=true;
+  if(!r.frequency)r.frequency="weekly";
+  if(!r.interval)r.interval=1;
+}
+for(const s of db.school){if(s.done===undefined)s.done=false}
+for(const p of db.pantry){if(!p.level)p.level="ok"}
+for(const t of db.trips){if(!Array.isArray(t.checklist))t.checklist=[]}
+
 for(const m of db.meals){
   if(!Array.isArray(m.ingredients)){
     m.ingredients = typeof m.ingredients==="string"
@@ -416,7 +472,7 @@ function passwordResetView(){
   </div>`;
 }
 
-const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity"];
+const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity","routines","school","pantry","trips","documents","familyStatus"];
 
 function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
 function authHeaders(extra={}){
@@ -889,7 +945,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.3</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v9</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -923,7 +979,17 @@ function globalSearchResults(q){
     out.push({kind:"inbox",id:i.id,icon:"📥",title:i.text,meta:`Inbox · ${i.author}`});
   for(const w of db.wishes)if(searchHay(w.title,w.person,w.note,w.url).includes(needle))
     out.push({kind:"wish",id:w.id,icon:"🎁",title:w.title,meta:`Wunsch · ${w.person}`});
-  return out.slice(0,40);
+  for(const r of db.routines)if(searchHay(r.title,r.who,r.note).includes(needle))
+    out.push({kind:"routine",id:r.id,icon:"🔁",title:r.title,meta:`Routine · ${r.who}`});
+  for(const s of db.school)if(searchHay(s.title,s.child,s.kind,s.subject,s.note).includes(needle))
+    out.push({kind:"school",id:s.id,icon:"🎒",title:s.title,meta:`Schule · ${s.child}`});
+  for(const p of db.pantry)if(searchHay(p.name,p.category,p.note).includes(needle))
+    out.push({kind:"pantry",id:p.id,icon:"🧺",title:p.name,meta:`Vorrat · ${pantryLevelLabel(p.level)}`});
+  for(const t of db.trips)if(searchHay(t.title,t.destination,t.note,(t.checklist||[]).map(x=>x.text).join(" ")).includes(needle))
+    out.push({kind:"trip",id:t.id,icon:"🧳",title:t.title,meta:`Reise · ${t.destination||""}`});
+  for(const d of db.documents)if(searchHay(d.title,d.category,d.owner,d.note).includes(needle))
+    out.push({kind:"document",id:d.id,icon:"📂",title:d.title,meta:`Dokument · ${d.category||""}`});
+  return out.slice(0,50);
 }
 function updateSearchResults(){
   const input=document.getElementById("globalSearch");
@@ -944,6 +1010,11 @@ function openSearchResult(kind,id){
   if(kind==="occasion"){go("occasions");return}
   if(kind==="inbox"){go("inbox");return}
   if(kind==="wish"){go("wishes");return}
+  if(kind==="routine"){go("routines");return}
+  if(kind==="school"){go("school");return}
+  if(kind==="pantry"){go("pantry");return}
+  if(kind==="trip"){go("trips");return}
+  if(kind==="document"){openDocument(id);return}
 }
 function searchOverlayHTML(){
   return `<div class="modalbg" onclick="if(event.target===this)closeSearch()"><div class="search-sheet">
@@ -1077,14 +1148,18 @@ async function swipeDelete(type,id){
       event:"events",
       inbox:"inbox",
       meal:"meals",
-      occasion:"occasions"
+      occasion:"occasions",
+      routine:"routines",
+      school:"school",
+      pantry:"pantry",
+      trip:"trips"
     };
     const collection=map[type];
     if(!collection)return;
     const item=db[collection]?.find(x=>x.id===id);
     db[collection]=db[collection].filter(x=>x.id!==id);
     const label=item?.title||item?.name||item?.text||"Eintrag";
-    const icon={task:"✓",shop:"🛒",event:"📅",inbox:"📥",meal:"🍲",occasion:"🎉"}[type]||"🗑️";
+    const icon={task:"✓",shop:"🛒",event:"📅",inbox:"📥",meal:"🍲",occasion:"🎉",routine:"🔁",school:"🎒",pantry:"🧺",trip:"🧳"}[type]||"🗑️";
     addActivity("🗑️",`hat „${label}“ gelöscht.`,type,id);
   }
   state.itemDetail=null;
@@ -1164,6 +1239,13 @@ function sortedMeals(){
 
 
 const DASHBOARD_META={
+  smart:["✨","Was jetzt wichtig ist"],
+  myday:["👤","Mein Tag"],
+  status:["📍","Familienstatus"],
+  routines:["🔁","Routinen"],
+  school:["🎒","Schule"],
+  pantry:["🧺","Vorräte"],
+  trip:["🧳","Urlaub & Reisen"],
   events:["📅","Heute anstehend"],
   tomorrow:["🌤️","Morgen"],
   tasks:["✓","Offene Aufgaben"],
@@ -1210,7 +1292,291 @@ function activityRows(limit=6){
     <div class="grow"><div class="activity-text"><b>${esc(a.by)}</b> ${esc(a.text)}</div><div class="activity-time">${esc(a.icon||"✨")} ${activityAge(a.at)}</div></div>
   </div>`).join("")||'<div class="notice">Noch keine Aktivitäten.</div>';
 }
+
+function daysUntil(date){
+  if(!date)return 99999;
+  const a=new Date(todayISO()+"T12:00"),b=new Date(date+"T12:00");
+  return Math.round((b-a)/86400000);
+}
+function advanceDate(date,frequency,interval=1){
+  const d=new Date((date||todayISO())+"T12:00"),n=Math.max(1,Number(interval)||1);
+  if(frequency==="daily")d.setDate(d.getDate()+n);
+  else if(frequency==="weekly")d.setDate(d.getDate()+7*n);
+  else if(frequency==="monthly")d.setMonth(d.getMonth()+n);
+  else if(frequency==="yearly")d.setFullYear(d.getFullYear()+n);
+  return d.toISOString().slice(0,10);
+}
+function routineLabel(r){
+  const unit={daily:"Tag",weekly:"Woche",monthly:"Monat",yearly:"Jahr"}[r.frequency]||"Intervall";
+  return Number(r.interval||1)===1?`jede${unit==="Woche"?" ":"n "}${unit.toLowerCase()}`:`alle ${r.interval} ${unit}${unit==="Monat"?"e":unit==="Jahr"?"e":"n"}`;
+}
+function sortedRoutines(){
+  return [...db.routines].filter(r=>r.active!==false).sort((a,b)=>String(a.nextDate||"").localeCompare(String(b.nextDate||"")));
+}
+function completeRoutine(id){
+  if(!requireGeneralEdit())return;
+  const r=db.routines.find(x=>x.id===id);if(!r)return;
+  r.lastDone=new Date().toISOString();
+  r.nextDate=advanceDate(r.nextDate||todayISO(),r.frequency,r.interval);
+  addActivity("🔁",`hat die Routine „${r.title}“ erledigt.`,"routine",r.id);
+  save();render();
+}
+function setRoutineActive(id,on){
+  if(!requireGeneralEdit())return;
+  const r=db.routines.find(x=>x.id===id);if(!r)return;
+  r.active=on;save();render();
+}
+function schoolSorted(){
+  return [...db.school].sort((a,b)=>(String(a.date)+String(a.time||"")).localeCompare(String(b.date)+String(b.time||"")));
+}
+function toggleSchool(id){
+  if(!requireGeneralEdit())return;
+  const s=db.school.find(x=>x.id===id);if(!s)return;
+  s.done=!s.done;
+  addActivity(s.done?"✅":"↩️",s.done?`hat „${s.title}“ in Schule erledigt.`:`hat „${s.title}“ wieder geöffnet.`,"school",s.id);
+  save();render();
+}
+function pantryLevelLabel(l){return ({full:"Voll",ok:"Okay",low:"Knapp",empty:"Leer"}[l]||l)}
+function setPantryLevel(id,level){
+  if(!requireGeneralEdit())return;
+  const p=db.pantry.find(x=>x.id===id);if(!p)return;
+  p.level=level;p.updatedAt=new Date().toISOString();save();render();
+}
+function pantryToShopping(id){
+  if(!requireGeneralEdit())return;
+  const p=db.pantry.find(x=>x.id===id);if(!p)return;
+  const listId=state.shopList||db.shoppingLists[0]?.id;if(!listId)return alert("Bitte zuerst eine Einkaufsliste anlegen.");
+  const exists=db.shopping.some(s=>s.listId===listId&&!s.done&&s.name.trim().toLowerCase()===p.name.trim().toLowerCase());
+  if(!exists){
+    const sid="s"+Date.now();
+    db.shopping.push({id:sid,listId,name:p.name,qty:p.qty||"1×",cat:p.category||"Vorrat",by:currentDisplayName(),note:"Aus Vorräte",done:false,comments:[]});
+    addActivity("🧺",`hat „${p.name}“ aus den Vorräten auf die Einkaufsliste gesetzt.`,"shop",sid);
+  }
+  p.level="ok";save();render();
+}
+function tripProgress(t){
+  const total=(t.checklist||[]).length,done=(t.checklist||[]).filter(x=>x.done).length;
+  return {total,done,pct:total?Math.round(done/total*100):0};
+}
+function toggleTripCheck(tripId,itemId){
+  if(!requireGeneralEdit())return;
+  const t=db.trips.find(x=>x.id===tripId),i=t?.checklist?.find(x=>x.id===itemId);if(!i)return;
+  i.done=!i.done;save();render();
+}
+function addTripCheck(tripId){
+  if(!requireGeneralEdit())return;
+  const text=prompt("Was soll auf die Reise-Checkliste?");if(!text?.trim())return;
+  const t=db.trips.find(x=>x.id===tripId);if(!t)return;
+  t.checklist.push({id:"tc"+Date.now(),text:text.trim(),done:false});
+  save();render();
+}
+function createTripTasks(tripId){
+  if(!requireGeneralEdit())return;
+  const t=db.trips.find(x=>x.id===tripId);if(!t)return;
+  const who=currentDisplayName(),due=t.startDate||todayISO();
+  let n=0;
+  for(const i of t.checklist.filter(x=>!x.done)){
+    if(db.tasks.some(x=>!x.done&&x.title.toLowerCase()===i.text.toLowerCase()))continue;
+    db.tasks.push({id:"t"+Date.now()+"-"+n++,title:i.text,due,time:"18:00",who,prio:"med",repeat:"none",remindMinutes:1440,note:`Reise: ${t.title}`,done:false,completedAt:null,comments:[]});
+  }
+  addActivity("🧳",`hat die offene Checkliste für „${t.title}“ in Aufgaben übernommen.`,"trip",t.id);
+  save();render();
+}
+function statusFor(name){
+  return db.familyStatus.find(s=>s.person===name)||{person:name,status:"—",note:"",updatedAt:""};
+}
+function setFamilyStatus(name,status){
+  if(!requireGeneralEdit())return;
+  const me=currentDisplayName();
+  if(!canManageFamily()&&name!==me)return alert("Du kannst nur deinen eigenen Status ändern.");
+  let s=db.familyStatus.find(x=>x.person===name);
+  if(!s){s={id:"fs-"+(person(name)?.id||Date.now()),person:name,status,note:"",updatedAt:new Date().toISOString()};db.familyStatus.push(s)}
+  else{s.status=status;s.updatedAt=new Date().toISOString()}
+  addActivity("📍",`hat den Status auf „${status}“ gesetzt.`,"status",s.id);
+  save();render();
+}
+function setFamilyStatusNote(name){
+  if(!requireGeneralEdit())return;
+  const me=currentDisplayName();
+  if(!canManageFamily()&&name!==me)return;
+  const old=statusFor(name),note=prompt("Kurzer Status-Hinweis, z. B. „bis 17 Uhr“:",old.note||"");
+  if(note===null)return;
+  let s=db.familyStatus.find(x=>x.person===name);
+  if(!s){s={id:"fs-"+(person(name)?.id||Date.now()),person:name,status:"—",note:note.trim(),updatedAt:new Date().toISOString()};db.familyStatus.push(s)}
+  else{s.note=note.trim();s.updatedAt=new Date().toISOString()}
+  save();render();
+}
+function expiringDocuments(days=90){
+  return db.documents.filter(d=>d.expires&&daysUntil(d.expires)>=0&&daysUntil(d.expires)<=days).sort((a,b)=>a.expires.localeCompare(b.expires));
+}
+function smartSuggestions(){
+  const out=[];
+  const overdue=sortedOpenTasks().filter(isTaskOverdue);
+  if(overdue.length)out.push({icon:"⏰",title:`${overdue.length} Aufgabe${overdue.length===1?"":"n"} überfällig`,text:"Am besten kurz neu terminieren oder erledigen.",action:`go('tasks')`,button:"Aufgaben"});
+  const dueR=sortedRoutines().filter(r=>daysUntil(r.nextDate)<=0);
+  if(dueR.length)out.push({icon:"🔁",title:`${dueR.length} Routine${dueR.length===1?"":"n"} fällig`,text:dueR.slice(0,2).map(r=>r.title).join(" · "),action:`go('routines')`,button:"Routinen"});
+  const low=db.pantry.filter(p=>["low","empty"].includes(p.level));
+  if(low.length)out.push({icon:"🧺",title:`${low.length} Vorrat${low.length===1?" ist":"e sind"} knapp`,text:low.slice(0,3).map(p=>p.name).join(" · "),action:`go('pantry')`,button:"Vorräte"});
+  const tomorrow=plusDays(1);
+  const schoolTomorrow=db.school.filter(s=>!s.done&&s.date===tomorrow);
+  if(schoolTomorrow.length)out.push({icon:"🎒",title:`Morgen ${schoolTomorrow.length} Schulpunkt${schoolTomorrow.length===1?"":"e"}`,text:schoolTomorrow.slice(0,3).map(s=>s.title).join(" · "),action:`go('school')`,button:"Schule"});
+  const exp=expiringDocuments(60);
+  if(exp.length)out.push({icon:"📂",title:`${exp.length} Dokument${exp.length===1?" läuft":"e laufen"} bald ab`,text:exp.slice(0,2).map(d=>`${d.title} (${fmtDate(d.expires)})`).join(" · "),action:`go('documents')`,button:"Dokumente"});
+  const trips=db.trips.filter(t=>daysUntil(t.startDate)>=0&&daysUntil(t.startDate)<=7);
+  if(trips.length)out.push({icon:"🧳",title:`Reise bald: ${trips[0].title}`,text:`Start ${fmtDate(trips[0].startDate)} · ${tripProgress(trips[0]).done}/${tripProgress(trips[0]).total} Checklistenpunkte erledigt`,action:`go('trips')`,button:"Reise"});
+  for(const m of sortedMeals().slice(0,3)){
+    const missing=(m.ingredients||[]).filter(ing=>!db.shopping.some(s=>!s.done&&s.name.toLowerCase()===String(ing).toLowerCase()));
+    if(missing.length>=2){out.push({icon:"🍲",title:`Zutaten für „${m.title}“ fehlen noch`,text:missing.slice(0,4).join(" · "),action:`go('meals')`,button:"Essensplan"});break}
+  }
+  return out.slice(0,6);
+}
+function smartSuggestionsHTML(limit=6){
+  const xs=smartSuggestions().slice(0,limit);
+  return xs.length?xs.map(s=>`<div class="suggestion"><div class="suggestion-icon">${s.icon}</div><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${esc(s.text)}</div><div class="suggestion-actions"><button onclick="${s.action}">${esc(s.button)} →</button></div></div></div>`).join(""):'<div class="notice success">Gerade sieht alles gut aus. 🎉</div>';
+}
+function myDayItems(){
+  const me=currentDisplayName(),p=person(me),owner=p?.id;
+  const td=todayISO();
+  return {
+    events:db.events.filter(e=>e.date===td&&(e.calendarOwner==="family"||e.calendarOwner===owner)).sort((a,b)=>String(a.time).localeCompare(String(b.time))),
+    tasks:sortedOpenTasks(db.tasks.filter(t=>t.who===me&&(t.due===td||isTaskOverdue(t)))),
+    school:db.school.filter(s=>!s.done&&s.child===me&&s.date<=td).sort((a,b)=>a.date.localeCompare(b.date))
+  };
+}
+function weekData(){
+  const days=[];
+  for(let i=0;i<7;i++){
+    const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+i);
+    const ds=d.toISOString().slice(0,10);
+    days.push({
+      date:ds,d,
+      events:db.events.filter(e=>e.date===ds).sort((a,b)=>String(a.time).localeCompare(String(b.time))),
+      tasks:sortedOpenTasks(db.tasks.filter(t=>t.due===ds)),
+      school:db.school.filter(s=>!s.done&&s.date===ds),
+      meals:sortedMeals().filter(m=>mealDayOffset(m.day)===i)
+    });
+  }
+  return days;
+}
+function weekView(){
+  return `<div class="section-title"><div><h2>Unsere Woche</h2><div class="small">Termine, Aufgaben, Schule und Essen für die nächsten 7 Tage.</div></div><button class="primary" onclick="openModal('capture')">+ Schnell erfassen</button></div>
+  ${weekData().map(x=>`<div class="week-day"><div class="week-date"><div class="title">${x.d.toLocaleDateString("de-DE",{weekday:"long"})}</div><div class="meta">${x.d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}</div></div>
+  ${[
+    ...x.events.map(e=>`<div class="week-line click-row" onclick="openItemDetail('event','${e.id}')"><span>📅</span><div><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")} · ${esc(calendarName(e.calendarOwner))}</div></div></div>`),
+    ...x.tasks.map(t=>`<div class="week-line click-row" onclick="openItemDetail('task','${t.id}')"><span>✓</span><div><div class="title">${esc(t.title)}</div><div class="meta">${esc(t.time||"")} · ${esc(t.who)}</div></div></div>`),
+    ...x.school.map(s=>`<div class="week-line"><span>🎒</span><div><div class="title">${esc(s.title)}</div><div class="meta">${esc(s.child)} · ${esc(s.subject||s.kind||"Schule")}</div></div></div>`),
+    ...x.meals.map(m=>`<div class="week-line"><span>🍲</span><div><div class="title">${esc(m.title)}</div><div class="meta">Essensplan</div></div></div>`)
+  ].join("")||'<div class="meta">Noch nichts geplant.</div>'}</div>`).join("")}`;
+}
+function routinesView(){
+  return `<div class="section-title"><div><h2>Routinen</h2><div class="small">Wiederkehrende Dinge, die nicht jedes Mal neu angelegt werden müssen.</div></div><button class="primary" onclick="openModal('routine')">+ Routine</button></div>
+  <section class="card s12">${sortedRoutines().map(r=>`<div class="row ${daysUntil(r.nextDate)<=0?"routine-due":"routine-ok"}"><div class="grow"><div class="title">${esc(r.title)}${daysUntil(r.nextDate)<0?` <span class="overdue-badge">überfällig</span>`:""}</div><div class="meta">${esc(r.who)} · ${fmtDate(r.nextDate)} · ${esc(routineLabel(r))}${r.note?` · ${esc(r.note)}`:""}</div></div><button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button><button class="ghost" onclick="setRoutineActive('${r.id}',false)">Pause</button><button class="danger" onclick="removeItem('routines','${r.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Routinen angelegt.</div>'}</section>
+  ${db.routines.some(r=>r.active===false)?`<section class="card s12" style="margin-top:12px"><h3>Pausiert</h3>${db.routines.filter(r=>r.active===false).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.who)}</div></div><button class="ghost" onclick="setRoutineActive('${r.id}',true)">Aktivieren</button></div>`).join("")}</section>`:""}`;
+}
+function schoolView(){
+  const upcoming=schoolSorted();
+  return `<div class="section-title"><div><h2>Schule</h2><div class="small">Hausaufgaben, Klassenarbeiten, Material, Elternabende und Ausflüge.</div></div><button class="primary" onclick="openModal('school')">+ Schule</button></div>
+  <section class="card s12">${upcoming.map(s=>`<div class="row"><button class="check ${s.done?"done":""}" onclick="toggleSchool('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title ${!s.done&&s.date<todayISO()?"overdue":""}">${esc(s.title)}</div><div class="meta"><span class="school-kind">${esc(s.kind)}</span> ${fmtDate(s.date)} ${esc(s.time||"")} · ${esc(s.child)}${s.subject?` · ${esc(s.subject)}`:""}${s.note?` · ${esc(s.note)}`:""}</div></div><button class="danger" onclick="removeItem('school','${s.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Schulsachen eingetragen.</div>'}</section>`;
+}
+function pantryView(){
+  const order={empty:0,low:1,ok:2,full:3};
+  const xs=[...db.pantry].sort((a,b)=>(order[a.level]??9)-(order[b.level]??9)||a.name.localeCompare(b.name,"de"));
+  return `<div class="section-title"><div><h2>Vorräte</h2><div class="small">Nur die Dinge im Blick behalten, die wirklich öfter ausgehen.</div></div><button class="primary" onclick="openModal('pantry')">+ Vorrat</button></div>
+  <section class="card s12">${xs.map(p=>`<div class="row"><div class="grow"><div class="title">${esc(p.name)} <span class="level level-${p.level}">${pantryLevelLabel(p.level)}</span></div><div class="meta">${esc(p.qty||"")} ${p.category?`· ${esc(p.category)}`:""}${p.note?` · ${esc(p.note)}`:""}</div><div class="status-actions"><button onclick="setPantryLevel('${p.id}','full')">Voll</button><button onclick="setPantryLevel('${p.id}','ok')">Okay</button><button onclick="setPantryLevel('${p.id}','low')">Knapp</button><button onclick="setPantryLevel('${p.id}','empty')">Leer</button></div></div>${["low","empty"].includes(p.level)?`<button class="primary" onclick="pantryToShopping('${p.id}')">🛒 Einkauf</button>`:""}<button class="danger" onclick="removeItem('pantry','${p.id}')">Löschen</button></div>`).join("")||'<div class="notice">Noch keine Vorräte beobachtet.</div>'}</section>`;
+}
+function tripsView(){
+  const xs=[...db.trips].sort((a,b)=>String(a.startDate).localeCompare(String(b.startDate)));
+  return `<div class="section-title"><div><h2>Urlaub & Reisen</h2><div class="small">Reise, Checkliste und Vorbereitung an einem Ort.</div></div><button class="primary" onclick="openModal('trip')">+ Reise</button></div>
+  ${xs.map(t=>{const p=tripProgress(t);return `<div class="trip-card"><div class="section-head"><div><div class="title">🧳 ${esc(t.title)}</div><div class="meta">${esc(t.destination||"")} · ${fmtDate(t.startDate)} bis ${fmtDate(t.endDate)}</div></div><button class="danger" onclick="removeItem('trips','${t.id}')">Löschen</button></div>${t.note?`<div class="detail-body">${esc(t.note)}</div>`:""}<div class="trip-progress"><i style="width:${p.pct}%"></i></div><div class="meta">${p.done}/${p.total} vorbereitet</div>${(t.checklist||[]).map(i=>`<label class="check-line"><input type="checkbox" ${i.done?"checked":""} onchange="toggleTripCheck('${t.id}','${i.id}')"><span>${esc(i.text)}</span></label>`).join("")}<div class="toolbar" style="margin-top:9px"><button class="ghost" onclick="addTripCheck('${t.id}')">+ Checklistenpunkt</button><button class="primary" onclick="createTripTasks('${t.id}')">Offenes → Aufgaben</button></div></div>`}).join("")||'<div class="notice">Noch keine Reise angelegt.</div>'}`;
+}
+function familyStatusView(){
+  const statuses=["Zuhause","Schule","Arbeit","Unterwegs","Frei","Nicht stören"];
+  return `<div class="section-title"><div><h2>Familienstatus</h2><div class="small">Freiwillig und manuell – keine Standortverfolgung.</div></div></div><div class="status-grid">${db.family.map(p=>{const s=statusFor(p.name),editable=canManageFamily()||p.name===currentDisplayName();return `<div class="status-card"><div class="myday-person">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}${s.updatedAt?` · ${activityAge(s.updatedAt)}`:""}</div></div></div>${editable?`<div class="status-actions">${statuses.map(x=>`<button onclick="setFamilyStatus('${esc(p.name)}','${x}')">${x}</button>`).join("")}<button onclick="setFamilyStatusNote('${esc(p.name)}')">✎ Hinweis</button></div>`:""}</div>`}).join("")}</div>`;
+}
+function quickCaptureCreate(kind,text){
+  if(!requireGeneralEdit())return;
+  const title=String(text||"").trim();if(!title)return;
+  const id=kind[0]+Date.now(),me=currentDisplayName();
+  if(kind==="task")db.tasks.push({id,title,due:todayISO(),time:"18:00",who:me,prio:"med",repeat:"none",remindMinutes:60,note:"Schnellerfassung",done:false,completedAt:null,comments:[]});
+  if(kind==="shop")db.shopping.push({id,listId:state.shopList||db.shoppingLists[0]?.id,name:title,qty:"1×",cat:"Sonstiges",by:me,note:"",done:false,comments:[]});
+  if(kind==="note")db.notes.unshift({id,title,body:"",text:"",category:"Allgemein",author:me,created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments:[]});
+  if(kind==="inbox")db.inbox.unshift({id,text:title,author:me,created:new Date().toISOString()});
+  if(kind==="routine")db.routines.push({id,title,who:me,frequency:"weekly",interval:1,nextDate:todayISO(),time:"18:00",note:"",active:true,lastDone:""});
+  if(kind==="school")db.school.push({id,title,child:me,kind:"Sonstiges",subject:"",date:todayISO(),time:"",note:"",done:false});
+  addActivity("⚡",`hat „${title}“ schnell erfasst.` ,kind,id);
+  save();state.modal=null;render();
+}
+
+const DOC_BUCKET="familienhub-docs";
+const docObjectUrls=new Map();
+async function uploadDocumentFile(docId,file){
+  if(!file)throw new Error("Bitte eine Datei auswählen.");
+  if(!cloud.enabled||!cloud.familyId||!cloud.accessToken)throw new Error("Dokumente benötigen die Supabase-Familien-Synchronisierung.");
+  await ensureFreshSession(false);
+  const p=await prepareMediaFile(file);
+  const objectId=crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2);
+  const path=`${cloud.familyId}/${docId}/${objectId}.${p.ext}`;
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+DOC_BUCKET+"/"+path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{method:"POST",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken,"Content-Type":p.type,"x-upsert":"false"},body:p.blob});
+  let d={};try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error(d.message||d.error||`Upload fehlgeschlagen (${r.status})`);
+  return {path,name:safeFileName(p.name),type:p.type,size:p.blob.size};
+}
+async function fetchDocumentBlob(d){
+  if(docObjectUrls.has(d.path))return docObjectUrls.get(d.path);
+  await ensureFreshSession(false);
+  const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/authenticated/"+DOC_BUCKET+"/"+d.path.split("/").map(encodeURIComponent).join("/");
+  const r=await fetch(url,{headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  if(!r.ok){let e={};try{e=await r.json()}catch{};throw new Error(e.message||"Dokument konnte nicht geladen werden.")}
+  const blob=await r.blob(),obj=URL.createObjectURL(blob);docObjectUrls.set(d.path,obj);return obj;
+}
+async function openDocument(id){
+  const d=db.documents.find(x=>x.id===id);if(!d)return;
+  try{const url=await fetchDocumentBlob(d);const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener";a.click()}catch(e){alert(e.message)}
+}
+async function deleteDocument(id){
+  if(!requireParent())return;
+  const d=db.documents.find(x=>x.id===id);if(!d)return;
+  if(!confirm(`„${d.title}“ wirklich löschen?`))return;
+  try{
+    await ensureFreshSession(false);
+    const url=cloud.url.replace(/\/$/,"")+"/storage/v1/object/"+DOC_BUCKET+"/"+d.path.split("/").map(encodeURIComponent).join("/");
+    await fetch(url,{method:"DELETE",headers:{apikey:cloud.anonKey,Authorization:"Bearer "+cloud.accessToken}});
+  }catch(e){console.warn(e)}
+  db.documents=db.documents.filter(x=>x.id!==id);
+  addActivity("🗑️",`hat das Dokument „${d.title}“ gelöscht.`,"document",id);
+  save();render();
+}
+
+function documentsView(){
+  const parent=canManageFamily();
+  const xs=[...db.documents].sort((a,b)=>String(a.expires||"9999").localeCompare(String(b.expires||"9999")));
+  return `<div class="section-title"><div><h2>Dokumente</h2><div class="small">Private Familienunterlagen mit Ablaufdatum.</div></div>${parent?`<button class="primary" onclick="openModal('document')">+ Dokument</button>`:""}</div>
+  <section class="card s12">${xs.map(d=>`<div class="doc-row"><div class="doc-icon">${(d.type||"").includes("pdf")?"📄":"🖼️"}</div><div class="grow"><div class="title">${esc(d.title)}</div><div class="meta">${esc(d.category||"Dokument")}${d.owner?` · ${esc(d.owner)}`:""}${d.expires?` · <span class="${daysUntil(d.expires)<=60?"expiring":""}">gültig bis ${fmtDate(d.expires)}</span>`:""}${d.note?` · ${esc(d.note)}`:""}</div></div><button class="ghost" onclick="openDocument('${d.id}')">Öffnen</button>${parent?`<button class="danger" onclick="deleteDocument('${d.id}')">Löschen</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Dokumente abgelegt.</div>'}</section>
+  ${!parent?`<div class="notice" style="margin-top:12px">Dokumente können nur von Eltern hinzugefügt oder gelöscht werden.</div>`:""}`;
+}
+
 function dashboardCard(key,ctx){
+  if(key==="smart")return `<section class="card s7"><div class="section-head"><h3>✨ Was jetzt wichtig ist</h3><button class="card-link" onclick="go('week')">Woche →</button></div>${smartSuggestionsHTML(5)}</section>`;
+  if(key==="myday"){
+    const x=myDayItems();
+    return `<section class="card s5"><div class="section-head"><h3>👤 Mein Tag</h3><span class="meta">${esc(currentDisplayName())}</span></div>${[
+      ...x.events.slice(0,2).map(e=>`<div class="row click-row" onclick="openItemDetail('event','${e.id}')"><span>📅</span><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")}</div></div></div>`),
+      ...x.tasks.slice(0,3).map(t=>`<div class="row click-row" onclick="openItemDetail('task','${t.id}')"><span>✓</span><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${taskDueLabel(t)}</div></div></div>`),
+      ...x.school.slice(0,2).map(s=>`<div class="row"><span>🎒</span><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${fmtDate(s.date)}</div></div></div>`)
+    ].join("")||'<div class="notice success">Für dich ist gerade nichts offen.</div>'}</section>`;
+  }
+  if(key==="status")return `<section class="card s6"><div class="section-head"><h3>📍 Familienstatus</h3><button class="card-link" onclick="go('status')">Ändern →</button></div>${db.family.slice(0,5).map(p=>{const s=statusFor(p.name);return `<div class="row">${avatar(p.name,true)}<div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}</div></div></div>`}).join("")}</section>`;
+  if(key==="routines")return `<section class="card s6"><div class="section-head"><h3>🔁 Routinen</h3><button class="card-link" onclick="go('routines')">Alle →</button></div>${sortedRoutines().slice(0,4).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${fmtDate(r.nextDate)} · ${esc(r.who)}</div></div>${daysUntil(r.nextDate)<=0?`<button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Routinen.</div>'}</section>`;
+  if(key==="school")return `<section class="card s6"><div class="section-head"><h3>🎒 Schule</h3><button class="card-link" onclick="go('school')">Öffnen →</button></div>${schoolSorted().filter(s=>!s.done&&s.date<=plusDays(7)).slice(0,4).map(s=>`<div class="row"><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${fmtDate(s.date)} · ${esc(s.child)} · ${esc(s.kind)}</div></div></div>`).join("")||'<div class="notice">Diese Woche nichts eingetragen.</div>'}</section>`;
+  if(key==="pantry")return `<section class="card s6"><div class="section-head"><h3>🧺 Vorräte</h3><button class="card-link" onclick="go('pantry')">Öffnen →</button></div>${db.pantry.filter(p=>["low","empty"].includes(p.level)).slice(0,4).map(p=>`<div class="row"><div class="grow"><div class="title">${esc(p.name)}</div><div class="meta"><span class="level level-${p.level}">${pantryLevelLabel(p.level)}</span></div></div><button class="ghost" onclick="pantryToShopping('${p.id}')">🛒</button></div>`).join("")||'<div class="notice success">Vorräte sehen gut aus.</div>'}</section>`;
+  if(key==="trip"){
+    const t=[...db.trips].filter(x=>x.endDate>=todayISO()).sort((a,b)=>a.startDate.localeCompare(b.startDate))[0];
+    if(!t)return `<section class="card s6"><div class="section-head"><h3>🧳 Urlaub & Reisen</h3><button class="card-link" onclick="go('trips')">Planen →</button></div><div class="notice">Keine Reise geplant.</div></section>`;
+    const p=tripProgress(t);
+    return `<section class="card s6"><div class="section-head"><h3>🧳 ${esc(t.title)}</h3><button class="card-link" onclick="go('trips')">Öffnen →</button></div><div class="meta">${fmtDate(t.startDate)} · ${esc(t.destination||"")}</div><div class="trip-progress"><i style="width:${p.pct}%"></i></div><div class="meta">${p.done}/${p.total} vorbereitet</div></section>`;
+  }
+
   if(key==="events")return `<section class="card s7"><div class="section-head"><h3>📅 Heute anstehend</h3><button class="card-link" onclick="go('calendar')">Kalender →</button></div>${ctx.ev.length?ctx.ev.map(e=>swipeWrap("event",e.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('event','${e.id}')"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}<span class="chev">›</span></div>`)).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>`;
   if(key==="tomorrow"){
     const d=new Date();d.setDate(d.getDate()+1);const ds=d.toISOString().slice(0,10);
@@ -1271,6 +1637,7 @@ function todayView(){
    <button class="quick-action" onclick="openModal('shop')"><b>🛒</b>Einkauf</button>
    <button class="quick-action" onclick="openModal('note')"><b>📌</b>Pinnwand</button>
    <button class="quick-action" onclick="openModal('inbox')"><b>📥</b>Inbox</button>
+   <button class="quick-action" onclick="openModal('capture')"><b>⚡</b>Schnell</button>
  </div>
  <div class="grid">${visible.map(k=>dashboardCard(k,{ev,tasks,shopping})).join("")}</div>`;
 }
@@ -1322,7 +1689,7 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
 
@@ -1358,6 +1725,22 @@ function adjustShopQty(id,delta){
  let n=match?Number(match[1]):1;n=Math.max(1,n+delta);
  s.qty=n+"×";save();render();
 }
+
+function addItemComment(type,id){
+  if(!requireGeneralEdit())return;
+  const input=document.getElementById("itemComment"),text=input?.value.trim();if(!text)return;
+  const collection=type==="event"?db.events:db.tasks;
+  const x=collection.find(v=>v.id===id);if(!x)return;
+  if(!Array.isArray(x.comments))x.comments=[];
+  x.comments.push({id:"ic"+Date.now(),author:currentDisplayName(),text,created:new Date().toISOString()});
+  addActivity("💬",`hat „${x.title}“ kommentiert.`,type,id);
+  save();render();
+}
+function itemCommentsHTML(type,x){
+  const comments=x.comments||[];
+  return `<h3 style="margin-top:20px">💬 Kommentare</h3>${comments.map(c=>`<div class="comment"><div class="comment-head">${avatar(c.author,true)}<div class="grow"><b>${esc(c.author)}</b><div class="meta">${new Date(c.created).toLocaleString("de-DE")}</div></div></div><div class="comment-body">${esc(c.text)}</div></div>`).join("")||'<div class="notice">Noch keine Kommentare.</div>'}${canEditGeneral()?`<div class="comment-compose"><input id="itemComment" placeholder="Kommentar schreiben …" onkeydown="if(event.key==='Enter'){event.preventDefault();addItemComment('${type}','${x.id}')}"><button class="primary" onclick="addItemComment('${type}','${x.id}')">Senden</button></div>`:""}`;
+}
+
 function itemDetailHTML(){
  const x=detailItem();if(!x)return "";
  const type=state.itemDetail.type;
@@ -1373,6 +1756,7 @@ function itemDetailHTML(){
     </div>
     ${x.place?`<div class="detail-body"><b>Ort:</b> ${esc(x.place)}</div>`:""}
     ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${itemCommentsHTML("event",x)}
     ${canEditGeneral()?`<div class="actions"><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
    </div></div>`;
  }
@@ -1387,6 +1771,7 @@ function itemDetailHTML(){
       <div class="detail-box"><div class="meta">Wiederholung</div><div class="title">${repeatLabel(x.repeat)}</div></div>
     </div>
     ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${itemCommentsHTML("task",x)}
     ${canEditGeneral()&&!x.done?`<div class="task-quick-shift"><button onclick="shiftTaskDue('${x.id}','today')">📍 Heute</button><button onclick="shiftTaskDue('${x.id}','tomorrow')">🌤️ Morgen</button><button onclick="shiftTaskDue('${x.id}','week')">📆 + 1 Woche</button></div>`:""}
     ${canEditGeneral()?`<div class="actions"><button class="primary" onclick="toggleTask('${x.id}');state.itemDetail=null;render()">${x.done?"Wieder öffnen":"Als erledigt markieren"}</button><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
    </div></div>`;
@@ -1418,6 +1803,9 @@ function quickMenuHTML(){
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('note')"><b>📌</b>Pinnwand</button>
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('inbox')"><b>📥</b>Inbox</button>
     <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('meal')"><b>🍲</b>Gericht</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('routine')"><b>🔁</b>Routine</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('school')"><b>🎒</b>Schule</button>
+    <button class="quick-sheet-btn" onclick="state.quickMenu=false;openModal('capture')"><b>⚡</b>Schnellerfassung</button>
    </div>
  </div></div>`;
 }
@@ -1570,7 +1958,7 @@ function mealsView(){
  <div class="swipe-hint">← Gericht nach links wischen zum Löschen</div>
  <section class="card s12">${sortedMeals().map(m=>swipeWrap("meal",m.id,`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="event.stopPropagation();addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}</div></div>`)).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
 }
-function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section><section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
+function homeView(){const parent=canManageFamily(),guest=myCloudRole()==="guest";return `<div class="section-title"><h2>Zuhause</h2></div><div class="grid">${parent?`<section class="card s6"><h3>🏠 Home Assistant</h3><div class="form"><div class="full"><label>Server-URL</label><input id="haUrl" value="${esc(db.ha.url)}" placeholder="https://homeassistant.example"></div><div class="full"><label>Long-Lived Access Token</label><input id="haToken" type="password" value="${esc(db.ha.token)}" placeholder="Token"></div></div><div class="toolbar" style="margin-top:12px"><button class="primary" onclick="connectHA()">Verbindung testen</button><button class="ghost" onclick="disconnectHA()">Trennen</button></div><div id="haStatus" class="notice" style="margin-top:10px">${db.ha.connected?"Verbunden":"Nicht verbunden"}</div></section>`:`<section class="card s6 locked-card"><h3>🔒 Home Assistant</h3><div class="notice">Server-Zugang und Token können nur von einem Eltern-Profil konfiguriert werden.</div></section>`}<section class="card s6"><h3>Berechtigung</h3><div class="notice">${guest?"Gastprofile können den Hausbereich nur ansehen.":"Kinderprofile dürfen Hausgeräte bedienen, aber keine Zugangsdaten ändern."}</div></section>${db.ha.connected&&(db.ha.scenes||[]).length?`<section class="card s12"><h3>🎬 Szenen</h3><div class="ha-scenes">${db.ha.scenes.map(s=>`<button class="ha-scene" onclick="activateHAScene('${s.entity_id}')">▶ ${esc(s.name)}</button>`).join("")}</div></section>`:""}<section class="card s12"><h3>Geräte</h3><div class="homegrid">${(db.ha.connected&&db.ha.entities.length?db.ha.entities:db.demoDevices).map(d=>deviceCard(d,db.ha.connected)).join("")}</div></section></div>`;}
 
 
 function currentDisplayName(){
@@ -1615,6 +2003,26 @@ function reminderItems(){
     const trigger=new Date(due.getTime()-days*86400000);
     items.push({key:`maint-${m.id}-${trigger.getTime()}`,icon:"🛠️",type:"Wartung",title:m.title,meta:`${m.area} · ${days} Tage vorher`,trigger,due});
   }
+  for(const r of db.routines.filter(x=>x.active!==false)){
+    if(!r.nextDate)continue;
+    const due=new Date(`${r.nextDate}T${r.time||"18:00"}`),trigger=new Date(due.getTime()-60*60000);
+    items.push({key:`routine-${r.id}-${trigger.getTime()}`,icon:"🔁",type:"Routine",title:r.title,meta:`${r.who} · 1 Std vorher`,trigger,due});
+  }
+  for(const s of db.school.filter(x=>!x.done)){
+    if(!s.date)continue;
+    const due=new Date(`${s.date}T${s.time||"18:00"}`),trigger=new Date(due.getTime()-1440*60000);
+    items.push({key:`school-${s.id}-${trigger.getTime()}`,icon:"🎒",type:"Schule",title:s.title,meta:`${s.child} · 1 Tag vorher`,trigger,due});
+  }
+  for(const d of db.documents){
+    if(!d.expires)continue;
+    const due=new Date(`${d.expires}T09:00`),trigger=new Date(due.getTime()-30*86400000);
+    items.push({key:`doc-${d.id}-${trigger.getTime()}`,icon:"📂",type:"Dokument",title:d.title,meta:"läuft in 30 Tagen ab",trigger,due});
+  }
+  for(const t of db.trips){
+    if(!t.startDate)continue;
+    const due=new Date(`${t.startDate}T09:00`),trigger=new Date(due.getTime()-7*86400000);
+    items.push({key:`trip-${t.id}-${trigger.getTime()}`,icon:"🧳",type:"Reise",title:t.title,meta:"Start in 1 Woche",trigger,due});
+  }
   return items.filter(x=>!Number.isNaN(x.trigger.getTime())).sort((a,b)=>a.trigger-b.trigger);
 }
 function remindersView(){
@@ -1622,7 +2030,7 @@ function remindersView(){
   const all=reminderItems();
   const upcoming=all.filter(x=>x.due>=new Date(now.getTime()-86400000)).slice(0,30);
   const permission=("Notification" in window)?Notification.permission:"unsupported";
-  return `<div class="section-title"><div><h2>Erinnerungen</h2><div class="small">Termine, Aufgaben, Anlässe und Hauswartungen in einer Übersicht.</div></div></div>
+  return `<div class="section-title"><div><h2>Erinnerungen</h2><div class="small">Termine, Aufgaben, Routinen, Schule, Dokumente, Reisen, Anlässe und Hauswartungen in einer Übersicht.</div></div></div>
   <div class="grid">
     <section class="card s4">
       <h3>🔔 Benachrichtigungen</h3>
@@ -1757,7 +2165,7 @@ function restoreModalDraft(){
 }
 function render(){
  captureModalDraft();
- const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+ const m={today:todayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
  document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
  restoreModalDraft();
  checkReminders();
@@ -1792,10 +2200,16 @@ meal:`<div><label>Tag</label><input id="fDay" placeholder="z.B. Samstag"></div><
 inbox:`<div class="full"><label>Schnellnotiz</label><textarea id="fTitle" placeholder="Was möchtest du später einsortieren?"></textarea></div>`,
 maintenance:`<div class="full"><label>Wartung</label><input id="fTitle" placeholder="z. B. Rauchmelder prüfen"></div><div><label>Bereich</label><input id="fArea" placeholder="z. B. Technik"></div><div><label>Nächster Termin</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Intervall in Monaten</label><input id="fInterval" type="number" min="1" value="12"></div><div><label>Erinnerung Tage vorher</label><input id="fReminderDays" type="number" min="0" value="30"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
 asset:`<div class="full"><label>Gerät / Anlage</label><input id="fTitle" placeholder="z. B. Waschmaschine"></div><div><label>Ort</label><input id="fArea" placeholder="Hauswirtschaft"></div><div><label>Kaufdatum</label><input id="fPurchase" type="date"></div><div><label>Garantie bis</label><input id="fWarranty" type="date"></div><div><label>Seriennummer</label><input id="fSerial"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
-meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`
-}[t];const editing=t.endsWith("Edit");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveModal('${t}')">Speichern</button></div></div></div>`}
+meter:`<div><label>Zähler</label><select id="fKind"><option>Strom</option><option>Gas</option><option>Wasser</option><option>PV</option><option>Sonstiges</option></select></div><div><label>Stand</label><input id="fTitle" inputmode="decimal" placeholder="12345"></div><div><label>Einheit</label><input id="fUnit" value="kWh"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div>`,
+routine:`<div class="full"><label>Routine</label><input id="fTitle" placeholder="z. B. Bettwäsche wechseln"></div><div><label>Zuständig</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Nächstes Mal</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Rhythmus</label><select id="fFrequency"><option value="daily">Täglich</option><option value="weekly" selected>Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></div><div><label>Alle … Intervalle</label><input id="fInterval" type="number" min="1" value="1"></div><div><label>Zeit</label><input id="fTime" type="time" value="18:00"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+school:`<div class="full"><label>Eintrag</label><input id="fTitle" placeholder="z. B. Mathearbeit Kapitel 4"></div><div><label>Kind</label><select id="fPerson">${peopleOptions()}</select></div><div><label>Art</label><select id="fKind"><option>Hausaufgabe</option><option>Klassenarbeit</option><option>Material</option><option>Ausflug</option><option>Elternabend</option><option>Sonstiges</option></select></div><div><label>Fach</label><input id="fSubject" placeholder="z. B. Mathe"></div><div><label>Datum</label><input id="fDate" type="date" value="${todayISO()}"></div><div><label>Zeit optional</label><input id="fTime" type="time"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+pantry:`<div class="full"><label>Vorrat</label><input id="fTitle" placeholder="z. B. Spülmaschinentabs"></div><div><label>Menge</label><input id="fQty" placeholder="z. B. 1 Pack"></div><div><label>Kategorie</label><input id="fCat" placeholder="Haushalt"></div><div><label>Stand</label><select id="fLevel"><option value="full">Voll</option><option value="ok" selected>Okay</option><option value="low">Knapp</option><option value="empty">Leer</option></select></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div>`,
+trip:`<div class="full"><label>Reise</label><input id="fTitle" placeholder="z. B. Sommerurlaub Italien"></div><div class="full"><label>Ziel</label><input id="fDestination"></div><div><label>Von</label><input id="fDate" type="date" value="${plusDays(30)}"></div><div><label>Bis</label><input id="fEndDate" type="date" value="${plusDays(37)}"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full"><label>Start-Checkliste</label><textarea id="fChecklist" placeholder="Koffer packen&#10;Reisepässe prüfen&#10;Pflanzen versorgen&#10;Müll rausbringen"></textarea></div>`,
+document:`<div class="full"><label>Titel</label><input id="fTitle" placeholder="z. B. Reisepass Vlad"></div><div><label>Kategorie</label><select id="fCategory"><option>Ausweis</option><option>Versicherung</option><option>Garantie</option><option>Rechnung</option><option>Schule</option><option>Haus</option><option>Fahrzeug</option><option>Sonstiges</option></select></div><div><label>Für wen / was?</label><input id="fOwner" placeholder="z. B. Vlad oder Auto"></div><div><label>Gültig bis optional</label><input id="fDate" type="date"></div><div class="full"><label>Notiz</label><textarea id="fNote"></textarea></div><div class="full media-picker"><label>📎 Datei</label><input id="fDocument" type="file" accept="image/*,application/pdf"><div class="media-help">Bild oder PDF, maximal 5 MB. Privat in Supabase gespeichert.</div></div>`,
+capture:`<div class="full"><label>Was möchtest du schnell erfassen?</label><textarea id="fCaptureText" placeholder="z. B. Waschmittel kaufen"></textarea></div><div class="full"><label>Wohin?</label><div class="capture-choice"><button type="button" onclick="quickCaptureCreate('task',val('fCaptureText'))">✓ Aufgabe</button><button type="button" onclick="quickCaptureCreate('shop',val('fCaptureText'))">🛒 Einkauf</button><button type="button" onclick="quickCaptureCreate('note',val('fCaptureText'))">📌 Pinnwand</button><button type="button" onclick="quickCaptureCreate('inbox',val('fCaptureText'))">📥 Inbox</button><button type="button" onclick="quickCaptureCreate('routine',val('fCaptureText'))">🔁 Routine</button><button type="button" onclick="quickCaptureCreate('school',val('fCaptureText'))">🎒 Schule</button></div></div>`
+}[t];const editing=t.endsWith("Edit");return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${t==="capture"?"Schnellerfassung":editing?"Bearbeiten":"Hinzufügen"}</h3><div class="form">${f}</div><div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button>${t==="capture"?"":`<button class="primary" onclick="saveModal('${t}')">Speichern</button>`}</div></div></div>`}
 const val=id=>document.getElementById(id)?.value?.trim()||"";
-async function saveModal(t){if(["person","maintenance","asset","meter","hero"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
+async function saveModal(t){if(["person","maintenance","asset","meter","hero","document"].includes(t)){if(!requireParent())return}else if(!requireGeneralEdit())return;const title=val("fTitle"),id=t[0]+Date.now();if(!["hero","noteEdit","capture"].includes(t)&&!title)return;if(t==="event"){const owner=val("fCalendar")||"family";db.events.push({id,title,date:val("fDate"),time:val("fTime"),calendarOwner:owner,person:calendarName(owner)==="Familie"?"Alle":calendarName(owner),place:val("fPlace"),remindMinutes:Number(val("fReminder")||0),note:val("fNote")});}if(t==="task")db.tasks.push({id,title,due:val("fDate"),time:val("fTime"),who:val("fPerson"),prio:val("fPrio"),repeat:val("fRepeat"),remindMinutes:Number(val("fReminder")||0),note:val("fNote"),done:false,completedAt:null});if(t==="shop")db.shopping.push({id,listId:val("fList"),name:title,qty:val("fQty"),cat:val("fCat")||"Sonstiges",by:val("fPerson"),note:val("fNote"),done:false});if(t==="shoppingList"){const lid="l"+Date.now();db.shoppingLists.push({id:lid,name:title,icon:val("fIcon")||"🛍️"});state.shopList=lid}if(t==="wish")db.wishes.push({id,owner:val("fPerson"),title,note:val("fNote"),url:val("fUrl"),reserved:false,reservedBy:null});if(t==="occasion")db.occasions.push({id,title,date:val("fDate"),kind:val("fKind"),remind:Number(val("fRemind")||7)});if(t==="hero"){const c=dashboardCfg();c.heroTitle=val("fHeroTitle")||"FamilienHub";c.heroSubtitle=val("fHeroSubtitle")||"";db.settings.heroTitle=c.heroTitle;db.settings.heroSubtitle=c.heroSubtitle;addActivity("✏️","hat den Begrüßungstext der Startseite geändert.","dashboard","main");}
 if(t==="note"){const body=val("fBody");let attachments=[];const files=document.getElementById("fAttachments")?.files;if(files?.length){try{attachments=await uploadNoteFiles(id,files)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}db.notes.unshift({id,title,body,text:body,category:val("fCategory")||"Allgemein",author:val("fPerson"),created:new Date().toISOString(),pinned:false,reactions:{},comments:[],attachments});}
 if(t==="noteEdit"){const n=db.notes.find(x=>x.id===state.modal.editId);if(n){const files=document.getElementById("fAttachments")?.files;if(files?.length){try{const added=await uploadNoteFiles(n.id,files);n.attachments=[...(n.attachments||[]),...added].slice(0,8)}catch(e){return alert("Upload fehlgeschlagen: "+e.message)}}n.title=val("fTitle")||n.title;n.body=val("fBody");n.text=n.body;n.category=val("fCategory")||"Allgemein";n.author=val("fPerson")||n.author;}}
 if(t==="eventEdit"){const e=db.events.find(x=>x.id===state.modal.editId);if(e){const owner=val("fCalendar")||"family";e.title=title;e.date=val("fDate");e.time=val("fTime");e.calendarOwner=owner;e.person=calendarName(owner)==="Familie"?"Alle":calendarName(owner);e.place=val("fPlace");e.remindMinutes=Number(val("fReminder")||0);e.note=val("fNote");}}
@@ -1806,6 +2220,11 @@ if(t==="inbox")db.inbox.unshift({id:"i"+Date.now(),text:title,author:currentDisp
 if(t==="maintenance"){if(!requireParent())return;db.houseMaintenance.push({id:"hm"+Date.now(),title,area:val("fArea")||"Haus",nextDate:val("fDate"),intervalMonths:Number(val("fInterval")||12),reminderDays:Number(val("fReminderDays")||0),responsible:val("fPerson"),note:val("fNote"),lastDone:""});}
 if(t==="asset"){if(!requireParent())return;db.houseAssets.push({id:"ha"+Date.now(),name:title,location:val("fArea")||"Haus",purchaseDate:val("fPurchase"),warrantyUntil:val("fWarranty"),serial:val("fSerial"),note:val("fNote")});}
 if(t==="meter"){if(!requireParent())return;db.meterReadings.push({id:"mr"+Date.now(),kind:val("fKind"),value:title,unit:val("fUnit")||"",date:val("fDate")||todayISO()});}
+if(t==="routine")db.routines.push({id,title,who:val("fPerson"),frequency:val("fFrequency")||"weekly",interval:Number(val("fInterval")||1),nextDate:val("fDate")||todayISO(),time:val("fTime")||"18:00",note:val("fNote"),active:true,lastDone:""});
+if(t==="school")db.school.push({id,title,child:val("fPerson"),kind:val("fKind")||"Sonstiges",subject:val("fSubject"),date:val("fDate")||todayISO(),time:val("fTime"),note:val("fNote"),done:false});
+if(t==="pantry")db.pantry.push({id,title,name:title,qty:val("fQty"),category:val("fCat"),level:val("fLevel")||"ok",note:val("fNote"),updatedAt:new Date().toISOString()});
+if(t==="trip"){const checks=val("fChecklist").split(/[\n]+/).map(x=>x.trim()).filter(Boolean).map((text,i)=>({id:"tc"+Date.now()+"-"+i,text,done:false}));db.trips.push({id,title,destination:val("fDestination"),startDate:val("fDate"),endDate:val("fEndDate"),note:val("fNote"),checklist:checks});}
+if(t==="document"){const file=document.getElementById("fDocument")?.files?.[0];if(!file)return alert("Bitte eine Datei auswählen.");let uploaded;try{uploaded=await uploadDocumentFile(id,file)}catch(e){return alert("Dokument-Upload fehlgeschlagen: "+e.message)}db.documents.push({id,title,category:val("fCategory")||"Sonstiges",owner:val("fOwner"),expires:val("fDate"),note:val("fNote"),...uploaded,created:new Date().toISOString(),createdBy:currentDisplayName()});}
 if(t==="event")addActivity("📅",`hat den Termin „${title}“ erstellt.`,"event",id);
 if(t==="task")addActivity("✓",`hat die Aufgabe „${title}“ erstellt.`,"task",id);
 if(t==="shop")addActivity("🛒",`hat „${title}“ zur Einkaufsliste hinzugefügt.`,"shop",id);
@@ -1816,6 +2235,11 @@ if(t==="eventEdit")addActivity("✏️",`hat den Termin „${title}“ bearbeite
 if(t==="taskEdit")addActivity("✏️",`hat die Aufgabe „${title}“ bearbeitet.`,"task",state.modal.editId);
 if(t==="shopEdit")addActivity("✏️",`hat den Einkaufsartikel „${title}“ bearbeitet.`,"shop",state.modal.editId);
 if(t==="noteEdit")addActivity("✏️",`hat „${val("fTitle")}“ auf der Pinnwand bearbeitet.`,"note",state.modal.editId);
+if(t==="routine")addActivity("🔁",`hat die Routine „${title}“ angelegt.`,"routine",id);
+if(t==="school")addActivity("🎒",`hat „${title}“ unter Schule eingetragen.`,"school",id);
+if(t==="pantry")addActivity("🧺",`hat „${title}“ zu den Vorräten hinzugefügt.`,"pantry",id);
+if(t==="trip")addActivity("🧳",`hat die Reise „${title}“ angelegt.`,"trip",id);
+if(t==="document")addActivity("📂",`hat das Dokument „${title}“ abgelegt.`,"document",id);
 save();state.modal=null;render()}
 let photoPersonId=null;
 function editPhoto(id){if(!requireParent())return;photoPersonId=id;document.getElementById("photoPicker").click()}
@@ -1844,8 +2268,20 @@ function checkReminders(){
    localStorage.setItem(key,new Date().toISOString());
  }
 }
-async function connectHA(){if(!requireParent())return;const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));db.ha={url,token,connected:true,entities:ents};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
-function disconnectHA(){if(!requireParent())return;db.ha.connected=false;db.ha.entities=[];save();render()}
+async function connectHA(){if(!requireParent())return;const url=document.getElementById("haUrl").value.trim().replace(/\/$/,""),token=document.getElementById("haToken").value.trim();if(!url||!token)return;const box=document.getElementById("haStatus");box.textContent="Verbinde…";try{const r=await fetch(url+"/api/states",{headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json();const ents=all.filter(x=>["light.","switch.","cover."].some(p=>x.entity_id.startsWith(p))).slice(0,30).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id,room:"Home Assistant",icon:x.entity_id.startsWith("cover.")?"🪟":"💡",state:x.state}));const scenes=all.filter(x=>x.entity_id.startsWith("scene.")).slice(0,20).map(x=>({entity_id:x.entity_id,name:x.attributes.friendly_name||x.entity_id}));db.ha={url,token,connected:true,entities:ents,scenes};save();render()}catch(e){box.textContent="Verbindung fehlgeschlagen: "+e.message}}
+function disconnectHA(){if(!requireParent())return;db.ha.connected=false;db.ha.entities=[];db.ha.scenes=[];save();render()}
+
+async function activateHAScene(entity){
+  if(!requireGeneralEdit()||!db.ha.connected)return;
+  try{
+    const r=await fetch(`${db.ha.url}/api/services/scene/turn_on`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const s=(db.ha.scenes||[]).find(x=>x.entity_id===entity);
+    addActivity("🏠",`hat die Home-Assistant-Szene „${s?.name||entity}“ gestartet.`,"home",entity);
+    save();
+  }catch(e){alert("Szene konnte nicht gestartet werden: "+e.message)}
+}
+
 async function haToggle(entity,stateNow){if(!requireGeneralEdit()||!db.ha.connected)return;const domain=entity.split(".")[0];let service;if(domain==="cover")service=(stateNow==="open"?"close_cover":"open_cover");else service=(stateNow==="on"?"turn_off":"turn_on");try{await fetch(`${db.ha.url}/api/services/${domain}/${service}`,{method:"POST",headers:{Authorization:"Bearer "+db.ha.token,"Content-Type":"application/json"},body:JSON.stringify({entity_id:entity})});setTimeout(connectHARefresh,500)}catch(e){alert("Schalten fehlgeschlagen: "+e.message)}}
 async function connectHARefresh(){try{const r=await fetch(db.ha.url+"/api/states",{headers:{Authorization:"Bearer "+db.ha.token}});const all=await r.json();db.ha.entities=db.ha.entities.map(e=>{const n=all.find(x=>x.entity_id===e.entity_id);return n?{...e,state:n.state}:e});save();render()}catch{}}
 
