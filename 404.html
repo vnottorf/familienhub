@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v10</title>
+<title>FamilienHub v10.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -194,6 +194,21 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .smart-capture-suggest{margin-top:10px;padding:11px;border-radius:14px;background:#edf4eb;color:#50684f}
 .small-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-top:7px}
 @media(max-width:620px){.rotation-list{grid-template-columns:1fr}}
+.prep-hero{background:linear-gradient(145deg,#fff6ed,#f2eadf);border:1px solid var(--line);border-radius:22px;padding:17px;margin-bottom:14px}
+.prep-person{border:1px solid var(--line);background:#fffdf9;border-radius:18px;padding:13px;margin-bottom:10px}
+.prep-line{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-top:1px solid #eee4db}
+.prep-line:first-of-type{border-top:0}
+.prep-icon{width:28px;flex:none;text-align:center}
+.load-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.load-person{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px}
+.load-bar{height:6px;border-radius:999px;background:#eee6df;overflow:hidden;margin-top:7px}
+.load-bar i{height:100%;display:block;background:#899b81}
+.bulk-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.bulk-actions button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;color:var(--ink)}
+.stale-status{opacity:.58}
+.plan-chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;background:#f0e6dc;padding:5px 8px;font-size:10px;font-weight:800}
+@media(max-width:620px){.load-grid{grid-template-columns:1fr}}
+
 
 .undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:90;width:min(520px,calc(100% - 28px));background:#3d342f;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 16px 40px #0004}
 .undo-toast .grow{font-size:13px}
@@ -1033,7 +1048,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v10.1</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
 
@@ -1340,6 +1355,7 @@ function sortedMeals(){
 
 const DASHBOARD_META={
   smart:["✨","Was jetzt wichtig ist"],
+  prep:["🌙","Morgen vorbereiten"],
   myday:["👤","Mein Tag"],
   status:["📍","Familienstatus"],
   routines:["🔁","Routinen"],
@@ -1383,6 +1399,12 @@ function openActivity(a){
   if(a.kind==="note"&&db.notes.some(x=>x.id===a.refId)){openNote(a.refId);return}
   if(["event","task","shop"].includes(a.kind)){openItemDetail(a.kind,a.refId);return}
   if(a.kind==="meal"){go("meals");return}
+  if(a.kind==="routine"){go("routines");return}
+  if(a.kind==="school"){go("school");return}
+  if(a.kind==="pantry"){go("pantry");return}
+  if(a.kind==="trip"){go("trips");return}
+  if(a.kind==="document"){go("documents");return}
+  if(a.kind==="status"){go("status");return}
   if(a.kind==="maintenance"){go("house");return}
 }
 function activityRows(limit=6){
@@ -1525,6 +1547,11 @@ function expiringDocuments(days=90){
 function smartSuggestions(){
   const out=[];
   if(cloud.enabled&&cloud.familyId&&cloud.lastSync&&Date.now()-new Date(cloud.lastSync).getTime()>5*60000)out.push({icon:"☁️",title:"Synchronisierung ist länger her",text:`Letzter Sync ${new Date(cloud.lastSync).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}`,action:`go('cloud')`,button:"Sync prüfen"});
+  const tomorrowCount=tomorrowPrepCount();
+  if(tomorrowCount>=4)out.push({icon:"🌙",title:`Morgen stehen ${tomorrowCount} Punkte an`,text:"Ein kurzer Abend-Check kann morgen entspannter machen.",action:`go('prep')`,button:"Morgen vorbereiten"});
+  const plannedMeals=sortedMeals().filter(m=>{const o=mealDayOffset(m.day);return o>=0&&o<=6}).length;
+  if(plannedMeals<3)out.push({icon:"🍲",title:"Essensplan ist noch recht leer",text:`Für die nächsten 7 Tage sind ${plannedMeals} Gerichte geplant.`,action:`go('meals')`,button:"Essen planen"});
+  if([0,6].includes(new Date().getDay()))out.push({icon:"🗓️",title:"Guter Moment für den Wochenblick",text:"Termine, Aufgaben, Schule und Essen einmal gemeinsam überfliegen.",action:`go('week')`,button:"Woche öffnen"});
   const overdue=sortedOpenTasks().filter(isTaskOverdue);
   if(overdue.length)out.push({icon:"⏰",title:`${overdue.length} Aufgabe${overdue.length===1?"":"n"} überfällig`,text:"Am besten kurz neu terminieren oder erledigen.",action:`go('tasks')`,button:"Aufgaben"});
   const dueR=sortedRoutines().filter(r=>daysUntil(r.nextDate)<=0);
@@ -1574,6 +1601,98 @@ function myDayView(){
   </div>`;
 }
 
+
+function prepTomorrowData(){
+  const date=plusDays(1);
+  const people=db.family.map(p=>{
+    const owner=p.id;
+    const events=db.events.filter(e=>e.date===date&&(e.calendarOwner==="family"||e.calendarOwner===owner)).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||"")));
+    const tasks=sortedOpenTasks(db.tasks.filter(t=>t.due===date&&t.who===p.name));
+    const school=db.school.filter(s=>!s.done&&s.date===date&&s.child===p.name).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||"")));
+    const routines=sortedRoutines().filter(r=>r.nextDate===date&&r.who===p.name);
+    return {person:p,events,tasks,school,routines,total:events.length+tasks.length+school.length+routines.length};
+  });
+  const meals=sortedMeals().filter(m=>mealDayOffset(m.day)===1);
+  const trip=[...db.trips].filter(t=>t.startDate===date)[0]||null;
+  return {date,people,meals,trip};
+}
+function tomorrowPrepCount(){
+  const d=prepTomorrowData();
+  return d.people.reduce((n,p)=>n+p.total,0)+d.meals.length+(d.trip?1:0);
+}
+function prepPersonHTML(x){
+  const lines=[
+    ...x.events.map(e=>`<div class="prep-line click-row" onclick="openItemDetail('event','${e.id}')"><div class="prep-icon">📅</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")}${e.place?` · ${esc(e.place)}`:""}</div></div></div>`),
+    ...x.tasks.map(t=>`<div class="prep-line click-row" onclick="openItemDetail('task','${t.id}')"><div class="prep-icon">✓</div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${esc(t.time||"")} · Aufgabe</div></div></div>`),
+    ...x.school.map(s=>`<div class="prep-line"><div class="prep-icon">🎒</div><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${esc(s.kind)}${s.subject?` · ${esc(s.subject)}`:""}${s.time?` · ${esc(s.time)}`:""}</div></div>${!db.tasks.some(t=>!t.done&&t.title===s.title&&t.who===s.child)?`<button class="ghost" onclick="schoolToTask('${s.id}')">→ Aufgabe</button>`:""}</div>`),
+    ...x.routines.map(r=>`<div class="prep-line"><div class="prep-icon">🔁</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">Routine · ${esc(r.time||"")}</div></div></div>`)
+  ];
+  if(!lines.length)return "";
+  return `<div class="prep-person"><div class="myday-person">${avatar(x.person.name)}<div><div class="title">${esc(x.person.name)}</div><div class="meta">${x.total} Punkt${x.total===1?"":"e"} morgen</div></div></div>${lines.join("")}</div>`;
+}
+function prepView(){
+  const d=prepTomorrowData(),active=d.people.filter(x=>x.total);
+  const dateText=new Date(d.date+"T12:00").toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
+  return `<div class="section-title"><div><h2>Morgen vorbereiten</h2><div class="small">${dateText}</div></div><button class="primary" onclick="openModal('capture')">+ Schnell erfassen</button></div>
+  <div class="prep-hero"><div class="section-head"><div><div class="title">🌙 Abend-Check</div><div class="meta">Ein kurzer Blick, damit morgen nichts überrascht.</div></div><span class="pill">${tomorrowPrepCount()} Punkte</span></div>${d.meals.length?`<div class="prep-line"><div class="prep-icon">🍲</div><div class="grow"><div class="title">${d.meals.map(m=>esc(m.title)).join(" · ")}</div><div class="meta">Essen morgen</div></div><button class="ghost" onclick="addUpcomingMealIngredients(1)">🛒 Zutaten</button></div>`:""}${d.trip?`<div class="prep-line"><div class="prep-icon">🧳</div><div class="grow"><div class="title">${esc(d.trip.title)}</div><div class="meta">Reise startet morgen · ${tripProgress(d.trip).done}/${tripProgress(d.trip).total} vorbereitet</div></div><button class="ghost" onclick="go('trips')">Öffnen</button></div>`:""}</div>
+  ${active.map(prepPersonHTML).join("")||'<div class="notice success">Morgen sieht entspannt aus. 🎉</div>'}
+  <section class="card s12" style="margin-top:12px"><div class="section-head"><h3>🛒 Einkauf für die nächsten Tage</h3><button class="primary" onclick="addUpcomingMealIngredients(3)">Fehlende Zutaten → Einkauf</button></div><div class="meta">FamilienHub nimmt Zutaten der geplanten Gerichte für heute + die nächsten 3 Tage und überspringt Artikel, die bereits offen auf der Einkaufsliste stehen.</div></section>`;
+}
+function weekLoad(){
+  const result=db.family.map(p=>({name:p.name,count:0,events:0,tasks:0,school:0,routines:0}));
+  const byName=n=>result.find(x=>x.name===n);
+  const end=plusDays(6);
+  for(const e of db.events.filter(e=>e.date>=todayISO()&&e.date<=end)){
+    if(e.calendarOwner==="family"){for(const x of result){x.count++;x.events++}}
+    else{const p=db.family.find(x=>x.id===e.calendarOwner),x=p?byName(p.name):null;if(x){x.count++;x.events++}}
+  }
+  for(const t of db.tasks.filter(t=>!t.done&&t.due>=todayISO()&&t.due<=end)){const x=byName(t.who);if(x){x.count++;x.tasks++}}
+  for(const s of db.school.filter(s=>!s.done&&s.date>=todayISO()&&s.date<=end)){const x=byName(s.child);if(x){x.count++;x.school++}}
+  for(const r of db.routines.filter(r=>r.active!==false&&r.nextDate>=todayISO()&&r.nextDate<=end)){const x=byName(r.who);if(x){x.count++;x.routines++}}
+  return result;
+}
+function weekLoadHTML(){
+  const xs=weekLoad(),max=Math.max(1,...xs.map(x=>x.count));
+  return `<div class="load-grid">${xs.map(x=>`<div class="load-person"><div class="myday-person">${avatar(x.name,true)}<div class="grow"><div class="title">${esc(x.name)}</div><div class="meta">${x.count} Punkte diese Woche</div></div></div><div class="meta">📅 ${x.events} · ✓ ${x.tasks} · 🎒 ${x.school} · 🔁 ${x.routines}</div><div class="load-bar"><i style="width:${Math.round(x.count/max*100)}%"></i></div></div>`).join("")}</div>`;
+}
+function addUpcomingMealIngredients(days=3){
+  if(!requireGeneralEdit())return;
+  const listId=state.shopList||db.shoppingLists[0]?.id;
+  if(!listId)return alert("Bitte zuerst eine Einkaufsliste anlegen.");
+  const meals=sortedMeals().filter(m=>{const o=mealDayOffset(m.day);return o>=0&&o<=Number(days)});
+  const existing=new Set(db.shopping.filter(s=>s.listId===listId&&!s.done).map(s=>s.name.trim().toLowerCase()));
+  let added=0,used=0;
+  for(const m of meals){
+    if(!m.ingredients?.length)continue;
+    used++;
+    for(const ing of m.ingredients){
+      const name=String(ing||"").trim();if(!name||existing.has(name.toLowerCase()))continue;
+      db.shopping.push({id:"s"+Date.now()+"-"+added,listId,name,qty:"1×",cat:"Essensplan",by:currentDisplayName(),note:`Für ${m.title}`,done:false,comments:[]});
+      existing.add(name.toLowerCase());added++;
+    }
+  }
+  if(added){addActivity("🍲",`hat ${added} fehlende Zutaten für die nächsten Gerichte zur Einkaufsliste hinzugefügt.`,"meal","");save();render()}
+  alert(used?`${added} neue Zutat${added===1?"":"en"} hinzugefügt.`:"Für diesen Zeitraum sind noch keine Gerichte mit Zutaten geplant.");
+}
+function shiftAllOverdue(mode){
+  if(!requireGeneralEdit())return;
+  const xs=sortedOpenTasks().filter(isTaskOverdue);if(!xs.length)return;
+  const label=mode==="tomorrow"?"morgen":"in eine Woche";
+  if(!confirm(`${xs.length} überfällige Aufgabe${xs.length===1?"":"n"} auf ${label} verschieben?`))return;
+  const d=new Date();d.setDate(d.getDate()+(mode==="tomorrow"?1:7));const due=d.toISOString().slice(0,10);
+  for(const t of xs)t.due=due;
+  addActivity("📆",`hat ${xs.length} überfällige Aufgabe${xs.length===1?"":"n"} auf ${label} verschoben.`,"task","");
+  save();render();
+}
+function statusIsStale(s){
+  if(!s?.updatedAt)return false;
+  return Date.now()-new Date(s.updatedAt).getTime()>12*3600000;
+}
+function statusText(s){
+  if(!s)return "—";
+  return statusIsStale(s)?`${s.status||"—"} · veraltet`:s.status||"—";
+}
+
 function weekData(){
   const days=[];
   for(let i=0;i<7;i++){
@@ -1591,6 +1710,7 @@ function weekData(){
 }
 function weekView(){
   return `<div class="section-title"><div><h2>Unsere Woche</h2><div class="small">Termine, Aufgaben, Schule und Essen für die nächsten 7 Tage.</div></div><button class="primary" onclick="openModal('capture')">+ Schnell erfassen</button></div>
+  <section class="card s12" style="margin-bottom:12px"><div class="section-head"><div><h3>⚖️ Wochenlast</h3><div class="meta">Ein grober Überblick – nicht als Bewertung, sondern damit Aufgaben sichtbar bleiben.</div></div><button class="ghost" onclick="addUpcomingMealIngredients(6)">🛒 Wochen-Zutaten</button></div>${weekLoadHTML()}</section>
   ${weekData().map(x=>`<div class="week-day"><div class="week-date"><div class="title">${x.d.toLocaleDateString("de-DE",{weekday:"long"})}</div><div class="meta">${x.d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}</div></div>
   ${[
     ...x.events.map(e=>`<div class="week-line click-row" onclick="openItemDetail('event','${e.id}')"><span>📅</span><div><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")} · ${esc(calendarName(e.calendarOwner))}</div></div></div>`),
@@ -1599,42 +1719,6 @@ function weekView(){
     ...x.meals.map(m=>`<div class="week-line"><span>🍲</span><div><div class="title">${esc(m.title)}</div><div class="meta">Essensplan</div></div></div>`)
   ].join("")||'<div class="meta">Noch nichts geplant.</div>'}</div>`).join("")}`;
 }
-
-function editModule(type,id){
-  if(!requireGeneralEdit())return;
-  if(type==="document"&&!canManageFamily())return;
-  state.modal={type:type+"Edit",editId:id,values:{}};
-  render();
-}
-function schoolToTask(id){
-  if(!requireGeneralEdit())return;
-  const s=db.school.find(x=>x.id===id);if(!s)return;
-  const tid="t"+Date.now();
-  db.tasks.push({id:tid,title:s.title,due:s.date||todayISO(),time:s.time||"18:00",who:s.child||currentDisplayName(),prio:s.kind==="Klassenarbeit"?"high":"med",repeat:"none",remindMinutes:1440,note:[s.subject,s.note].filter(Boolean).join(" · "),done:false,completedAt:null,comments:[]});
-  addActivity("🎒",`hat „${s.title}“ als Aufgabe übernommen.`,"task",tid);
-  save();render();
-}
-function removeTripCheck(tripId,itemId){
-  if(!requireGeneralEdit())return;
-  const t=db.trips.find(x=>x.id===tripId);if(!t)return;
-  t.checklist=(t.checklist||[]).filter(x=>x.id!==itemId);save();render();
-}
-function addRoutineTemplate(title,frequency,interval){
-  if(!requireGeneralEdit())return;
-  const me=currentDisplayName(),id="r"+Date.now()+"-"+Math.random().toString(36).slice(2,5);
-  db.routines.push({id,title,who:me,frequency,interval,nextDate:todayISO(),time:"18:00",note:"",active:true,lastDone:""});
-  addActivity("🔁",`hat die Routine „${title}“ aus einer Vorlage angelegt.`,"routine",id);
-  save();state.modal=null;render();
-}
-function addPantryTemplate(name,category){
-  if(!requireGeneralEdit())return;
-  if(db.pantry.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert("Dieser Vorrat ist schon angelegt.");
-  const id="p"+Date.now()+"-"+Math.random().toString(36).slice(2,5);
-  db.pantry.push({id,title:name,name,qty:"1×",category,level:"ok",note:"",autoShop:false,updatedAt:new Date().toISOString()});
-  addActivity("🧺",`hat „${name}“ aus einer Vorlage zu den Vorräten hinzugefügt.`,"pantry",id);
-  save();state.modal=null;render();
-}
-
 function routinesView(){
   return `<div class="section-title"><div><h2>Routinen</h2><div class="small">Wiederkehrende Dinge, die nicht jedes Mal neu angelegt werden müssen.</div></div><div class="edit-actions"><button class="ghost" onclick="openModal('routineTemplates')">✨ Vorlagen</button><button class="primary" onclick="openModal('routine')">+ Routine</button></div></div>
   <div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div>
@@ -1661,7 +1745,7 @@ function tripsView(){
 }
 function familyStatusView(){
   const statuses=["Zuhause","Schule","Arbeit","Unterwegs","Frei","Nicht stören"];
-  return `<div class="section-title"><div><h2>Familienstatus</h2><div class="small">Freiwillig und manuell – keine Standortverfolgung.</div></div></div><div class="status-grid">${db.family.map(p=>{const s=statusFor(p.name),editable=canManageFamily()||p.name===currentDisplayName();return `<div class="status-card"><div class="myday-person">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}${s.updatedAt?` · ${activityAge(s.updatedAt)}`:""}</div></div></div>${editable?`<div class="status-actions">${statuses.map(x=>`<button onclick="setFamilyStatus('${esc(p.name)}','${x}')">${x}</button>`).join("")}<button onclick="setFamilyStatusNote('${esc(p.name)}')">✎ Hinweis</button></div>`:""}</div>`}).join("")}</div>`;
+  return `<div class="section-title"><div><h2>Familienstatus</h2><div class="small">Freiwillig und manuell – keine Standortverfolgung. Ein Status älter als 12 Stunden wird als veraltet markiert.</div></div></div><div class="status-grid">${db.family.map(p=>{const s=statusFor(p.name),editable=canManageFamily()||p.name===currentDisplayName(),stale=statusIsStale(s);return `<div class="status-card ${stale?"stale-status":""}"><div class="myday-person">${avatar(p.name)}<div><div class="title">${esc(p.name)}</div><div class="meta">${esc(statusText(s))}${s.note?` · ${esc(s.note)}`:""}${s.updatedAt?` · ${activityAge(s.updatedAt)}`:""}</div></div></div>${editable?`<div class="status-actions">${statuses.map(x=>`<button onclick="setFamilyStatus('${esc(p.name)}','${x}')">${x}</button>`).join("")}<button onclick="setFamilyStatusNote('${esc(p.name)}')">✎ Hinweis</button></div>`:""}</div>`}).join("")}</div>`;
 }
 function nextWeekdayDate(target){
   const map={so:0,sonntag:0,mo:1,montag:1,di:2,dienstag:2,mi:3,mittwoch:3,do:4,donnerstag:4,fr:5,freitag:5,sa:6,samstag:6};
@@ -1774,6 +1858,14 @@ function documentsView(){
 }
 function dashboardCard(key,ctx){
   if(key==="smart")return `<section class="card s7"><div class="section-head"><h3>✨ Was jetzt wichtig ist</h3><button class="card-link" onclick="go('week')">Woche →</button></div>${smartSuggestionsHTML(5)}</section>`;
+  if(key==="prep"){
+    const d=prepTomorrowData(),people=d.people.filter(x=>x.total);
+    const mini=[
+      ...people.slice(0,3).map(x=>`<div class="row"><div class="grow"><div class="title">${esc(x.person.name)}</div><div class="meta">${x.total} Punkt${x.total===1?"":"e"} · morgen</div></div>${avatar(x.person.name,true)}</div>`),
+      ...(d.meals.length?[`<div class="row"><span>🍲</span><div class="grow"><div class="title">${d.meals.map(m=>esc(m.title)).join(" · ")}</div><div class="meta">Essen morgen</div></div></div>`]:[])
+    ];
+    return `<section class="card s6"><div class="section-head"><h3>🌙 Morgen vorbereiten</h3><button class="card-link" onclick="go('prep')">Abend-Check →</button></div>${mini.length?mini.join(""):'<div class="notice success">Morgen sieht entspannt aus.</div>'}</section>`;
+  }
   if(key==="myday"){
     const name=focusPersonName(),x=myDayItems(name);
     return `<section class="card s5"><div class="section-head"><h3>👤 Mein Tag</h3><button class="card-link" onclick="go('myday')">${esc(name)} →</button></div>${[
@@ -1782,7 +1874,7 @@ function dashboardCard(key,ctx){
       ...x.routines.slice(0,2).map(r=>`<div class="row"><span>🔁</span><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">fällig</div></div></div>`)
     ].join("")||'<div class="notice success">Für heute ist gerade nichts offen.</div>'}</section>`;
   }
-  if(key==="status")return `<section class="card s6"><div class="section-head"><h3>📍 Familienstatus</h3><button class="card-link" onclick="go('status')">Ändern →</button></div>${db.family.slice(0,5).map(p=>{const s=statusFor(p.name);return `<div class="row">${avatar(p.name,true)}<div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(s.status||"—")}${s.note?` · ${esc(s.note)}`:""}</div></div></div>`}).join("")}</section>`;
+  if(key==="status")return `<section class="card s6"><div class="section-head"><h3>📍 Familienstatus</h3><button class="card-link" onclick="go('status')">Ändern →</button></div>${db.family.slice(0,5).map(p=>{const s=statusFor(p.name);return `<div class="row ${statusIsStale(s)?"stale-status":""}">${avatar(p.name,true)}<div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(statusText(s))}${s.note?` · ${esc(s.note)}`:""}</div></div></div>`}).join("")}</section>`;
   if(key==="routines")return `<section class="card s6"><div class="section-head"><h3>🔁 Routinen</h3><button class="card-link" onclick="go('routines')">Alle →</button></div>${sortedRoutines().slice(0,4).map(r=>`<div class="row"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${fmtDate(r.nextDate)} · ${esc(r.who)}</div></div>${daysUntil(r.nextDate)<=0?`<button class="primary" onclick="completeRoutine('${r.id}')">Erledigt</button>`:""}</div>`).join("")||'<div class="notice">Noch keine Routinen.</div>'}</section>`;
   if(key==="school")return `<section class="card s6"><div class="section-head"><h3>🎒 Schule</h3><button class="card-link" onclick="go('school')">Öffnen →</button></div>${schoolSorted().filter(s=>!s.done&&s.date<=plusDays(7)).slice(0,4).map(s=>`<div class="row"><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${fmtDate(s.date)} · ${esc(s.child)} · ${esc(s.kind)}</div></div></div>`).join("")||'<div class="notice">Diese Woche nichts eingetragen.</div>'}</section>`;
   if(key==="pantry")return `<section class="card s6"><div class="section-head"><h3>🧺 Vorräte</h3><button class="card-link" onclick="go('pantry')">Öffnen →</button></div>${db.pantry.filter(p=>["low","empty"].includes(p.level)).slice(0,4).map(p=>`<div class="row"><div class="grow"><div class="title">${esc(p.name)}</div><div class="meta"><span class="level level-${p.level}">${pantryLevelLabel(p.level)}</span></div></div><button class="ghost" onclick="pantryToShopping('${p.id}')">🛒</button></div>`).join("")||'<div class="notice success">Vorräte sehen gut aus.</div>'}</section>`;
@@ -1854,6 +1946,7 @@ function todayView(){
    <button class="quick-action" onclick="openModal('note')"><b>📌</b>Pinnwand</button>
    <button class="quick-action" onclick="openModal('inbox')"><b>📥</b>Inbox</button>
    <button class="quick-action" onclick="openModal('capture')"><b>⚡</b>Schnell</button>
+   <button class="quick-action" onclick="go('prep')"><b>🌙</b>Morgen</button>
  </div>
  <div class="grid">${visible.map(k=>dashboardCard(k,{ev,tasks,shopping})).join("")}</div>`;
 }
@@ -1887,7 +1980,7 @@ function calendarView(){
    </div>`)).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
  </section>`;
 }
-function tasksView(){const open=sortedOpenTasks(),overdue=open.filter(isTaskOverdue);return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><div class="grid">${overdue.length?`<section class="card s12"><div class="notice warning"><b>⏰ ${overdue.length} überfällige Aufgabe${overdue.length===1?"":"n"}</b> – sie stehen automatisch ganz oben.</div></section>`:""}<section class="card s8">${open.map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${open.length}</div><div class="kpi-label">offen</div><br><div class="kpi">${overdue.length}</div><div class="kpi-label">überfällig</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
+function tasksView(){const open=sortedOpenTasks(),overdue=open.filter(isTaskOverdue);return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><div class="grid">${overdue.length?`<section class="card s12"><div class="notice warning"><b>⏰ ${overdue.length} überfällige Aufgabe${overdue.length===1?"":"n"}</b> – sie stehen automatisch ganz oben.<div class="bulk-actions"><button onclick="shiftAllOverdue('tomorrow')">Alle auf morgen</button><button onclick="shiftAllOverdue('week')">Alle + 1 Woche</button></div></div></section>`:""}<section class="card s8">${open.map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${open.length}</div><div class="kpi-label">offen</div><br><div class="kpi">${overdue.length}</div><div class="kpi-label">überfällig</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
 
 function frequentShopping(listId){
   const map=new Map();
@@ -1928,7 +2021,7 @@ function wishesView(){
  }).join("")}</section>`).join("")}`;
 }
 function toggleCloudWishById(id){const w=db.wishes.find(x=>x.id===id);if(w)toggleCloudWish(w)}
-function moreView(){const xs=[["myday","👤","Mein Tag"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
+function moreView(){const xs=[["myday","👤","Mein Tag"],["prep","🌙","Morgen vorbereiten"],["week","🗓️","Unsere Woche"],["routines","🔁","Routinen"],["school","🎒","Schule"],["pantry","🧺","Vorräte"],["trips","🧳","Urlaub & Reisen"],["documents","📂","Dokumente"],["status","📍","Familienstatus"],["occasions","🎉","Besondere Anlässe"],["notes","📌","Pinnwand"],["family","👨‍👩‍👧‍👦","Familie & Fotos"],["meals","🍲","Essensplan"],["home","🏠","Zuhause / Home Assistant"],["backup","💾","Datensicherung"],["inbox","📥","Familien-Inbox"],["activity","✨","Familien-Aktivität"],["dashboard","⚙️","Startseite anpassen"],["reminders","🔔","Erinnerungen"],["house","🛠️","Haus & Wartung"],["roles","🔐","Rollen & Rechte"],["cloud","☁️","Familien-Synchronisierung"],["install","📱","App installieren"]];return `<div class="section-title"><h2>Mehr</h2></div><div class="grid">${xs.map(x=>`<section class="card s6" onclick="go('${x[0]}')" style="cursor:pointer"><h3>${x[1]} ${x[2]}</h3></section>`).join("")}</div>`}
 function occasionsView(){return `<div class="section-title"><h2>Besondere Anlässe</h2><button class="primary" onclick="openModal('occasion')">+ Anlass</button></div><div class="swipe-hint">← Anlass nach links wischen zum Löschen</div><section class="card s12">${db.occasions.map(o=>swipeWrap("occasion",o.id,`<div class="row"><div style="font-size:26px">${o.kind==="Geburtstag"?"🎂":"✨"}</div><div class="grow"><div class="title">${esc(o.title)}</div><div class="meta">${fmtDate(o.date)} · ${o.remind} Tage vorher erinnern</div></div></div>`)).join("")}</section>`}
 
 
@@ -2193,7 +2286,7 @@ function addMealToShopping(id){
 }
 function mealsView(){
  return `<div class="section-title"><div><h2>Essensplan</h2><div class="small">Gerichte planen und Zutaten direkt auf die Einkaufsliste setzen.</div></div><button class="primary" onclick="openModal('meal')">+ Gericht</button></div>
- <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
+ <div class="toolbar" style="margin-bottom:12px"><span class="pill">🛒 Einkaufsliste:</span><select style="width:auto" onchange="state.shopList=this.value;render()">${db.shoppingLists.map(l=>`<option value="${l.id}" ${state.shopList===l.id?"selected":""}>${esc(l.name)}</option>`).join("")}</select><button class="ghost" onclick="addUpcomingMealIngredients(3)">Zutaten 3 Tage</button><button class="ghost" onclick="addUpcomingMealIngredients(6)">Zutaten Woche</button></div>
  <div class="swipe-hint">← Gericht nach links wischen zum Löschen</div>
  <section class="card s12">${sortedMeals().map(m=>swipeWrap("meal",m.id,`<div class="row"><span class="badge">${esc(m.day)}</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="ingredients">${m.ingredients?.length?`Zutaten: ${esc(m.ingredients.join(" · "))}`:"Noch keine Zutaten hinterlegt"}</div></div><div class="meal-actions">${m.ingredients?.length?`<button class="primary" onclick="event.stopPropagation();addMealToShopping('${m.id}')">🛒 Zutaten</button>`:""}<button class="ghost" onclick="event.stopPropagation();editModule('meal','${m.id}')">Bearbeiten</button></div></div>`)).join("")||'<div class="notice">Noch keine Gerichte geplant.</div>'}</section>`;
 }
@@ -2425,7 +2518,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10 ergänzt Komfortfunktionen, Rotationen, Schlummern, intelligente Schnellerfassung und Wiederherstellungspunkte.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v10.1 ergänzt Morgen-Vorbereitung, Wochenlast, Sammel-Zutaten und schnelle Neuplanung überfälliger Aufgaben.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
@@ -2462,7 +2555,7 @@ function renderCrash(err){
 function render(){
  try{
    captureModalDraft();
-   const m={today:todayView,myday:myDayView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
+   const m={today:todayView,myday:myDayView,prep:prepView,calendar:calendarView,tasks:tasksView,shopping:shoppingView,wishes:wishesView,more:moreView,occasions:occasionsView,notes:notesView,family:familyView,meals:mealsView,home:homeView,backup:backupView,inbox:inboxView,activity:activityView,dashboard:dashboardSettingsView,week:weekView,routines:routinesView,school:schoolView,pantry:pantryView,trips:tripsView,documents:documentsView,status:familyStatusView,reminders:remindersView,house:houseView,roles:rolesView,cloud:cloudView,passwordReset:passwordResetView,install:installView};
    document.getElementById("root").innerHTML=shell((m[state.view]||todayView)());
    restoreModalDraft();
    checkReminders();
