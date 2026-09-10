@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v8.2</title>
+<title>FamilienHub v8.3</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -115,6 +115,24 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .swipe-item.swipe-open .swipe-content{transform:translateX(-92px)}
 .swipe-delete-btn{position:absolute;right:0;top:0;bottom:0;width:92px;border:0;background:#b85f54;color:#fff;font-weight:800;font-size:13px;z-index:1;display:flex;align-items:center;justify-content:center}
 .swipe-delete-btn:active{background:#9f4d45}
+.swipe-item.swipe-action-open .swipe-content{transform:translateX(92px)}
+.swipe-quick-btn{position:absolute;left:0;top:0;bottom:0;width:92px;border:0;background:#6f8b70;color:#fff;font-weight:800;font-size:13px;z-index:1;display:flex;align-items:center;justify-content:center}
+.swipe-quick-btn.undo{background:#8a7a6f}
+.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.header-search{width:38px;height:38px;border:1px solid var(--line);border-radius:13px;background:#fffaf6;color:var(--ink);font-size:19px;display:grid;place-items:center}
+.search-sheet{width:min(720px,100%);max-height:92vh;overflow:auto;background:#fffaf5;border-radius:28px 28px 0 0;padding:18px;box-shadow:0 -12px 40px #0002}
+.search-box{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:8px 12px;margin:10px 0 14px}
+.search-box input{border:0;background:transparent;padding:7px 3px;outline:0}
+.search-result{display:flex;align-items:center;gap:10px;padding:12px 4px;border-top:1px solid #eee2d8;cursor:pointer}
+.search-result:first-child{border-top:0}
+.search-icon{width:38px;height:38px;border-radius:12px;background:#f1e6dc;display:grid;place-items:center;font-size:19px;flex:none}
+.overdue{color:#a64e45;font-weight:800}
+.overdue-badge{display:inline-flex;border-radius:999px;padding:3px 7px;background:#f7e3df;color:#a64e45;font-size:10px;font-weight:800;margin-left:5px}
+.task-quick-shift{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0}
+.task-quick-shift button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 11px;color:var(--ink)}
+.tomorrow-line{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-top:1px solid #eee2d8}
+.tomorrow-line:first-child{border-top:0}
+
 .swipe-hint{font-size:11px;color:var(--muted);margin-top:-4px;margin-bottom:10px}
 .swipe-item .row{border-radius:0}
 
@@ -260,7 +278,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:""};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -871,31 +889,106 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.2</div></div></div><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v8.3</div></div></div><div class="header-actions"><button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
-function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;render()}
+function go(v){state.view=v;state.modal=null;state.noteDetailId=null;state.itemDetail=null;state.quickMenu=false;state.searchOpen=false;render()}
+
+
+function openSearch(){
+  state.searchOpen=true;
+  state.searchQuery="";
+  state.modal=null;state.quickMenu=false;state.noteDetailId=null;state.itemDetail=null;
+  render();
+  setTimeout(()=>document.getElementById("globalSearch")?.focus(),30);
+}
+function closeSearch(){state.searchOpen=false;state.searchQuery="";render()}
+function searchHay(...xs){return xs.filter(Boolean).join(" ").toLowerCase()}
+function globalSearchResults(q){
+  const needle=String(q||"").trim().toLowerCase();
+  if(needle.length<2)return [];
+  const out=[];
+  for(const e of db.events)if(searchHay(e.title,e.place,e.note,calendarName(e.calendarOwner),e.date).includes(needle))
+    out.push({kind:"event",id:e.id,icon:"📅",title:e.title,meta:`Termin · ${fmtDate(e.date)} ${e.time||""}`});
+  for(const t of db.tasks)if(searchHay(t.title,t.note,t.who,t.due).includes(needle))
+    out.push({kind:"task",id:t.id,icon:"✓",title:t.title,meta:`Aufgabe · ${t.who} · ${fmtDate(t.due)}`});
+  for(const s of db.shopping)if(searchHay(s.name,s.cat,s.note,s.by).includes(needle))
+    out.push({kind:"shop",id:s.id,icon:"🛒",title:s.name,meta:`Einkauf · ${s.cat||"Sonstiges"}${s.done?" · erledigt":""}`});
+  for(const n of db.notes)if(searchHay(n.title,n.body,n.text,n.category,n.author,(n.comments||[]).map(c=>c.text).join(" ")).includes(needle))
+    out.push({kind:"note",id:n.id,icon:"📌",title:n.title||"Pinnwand",meta:`Pinnwand · ${n.category||"Allgemein"}`});
+  for(const m of db.meals)if(searchHay(m.title,m.day,(m.ingredients||[]).join(" ")).includes(needle))
+    out.push({kind:"meal",id:m.id,icon:"🍲",title:m.title,meta:`Essensplan · ${m.day}`});
+  for(const o of db.occasions)if(searchHay(o.title,o.kind,o.date).includes(needle))
+    out.push({kind:"occasion",id:o.id,icon:"🎉",title:o.title,meta:`${o.kind||"Anlass"} · ${fmtDate(o.date)}`});
+  for(const i of db.inbox)if(searchHay(i.text,i.author).includes(needle))
+    out.push({kind:"inbox",id:i.id,icon:"📥",title:i.text,meta:`Inbox · ${i.author}`});
+  for(const w of db.wishes)if(searchHay(w.title,w.person,w.note,w.url).includes(needle))
+    out.push({kind:"wish",id:w.id,icon:"🎁",title:w.title,meta:`Wunsch · ${w.person}`});
+  return out.slice(0,40);
+}
+function updateSearchResults(){
+  const input=document.getElementById("globalSearch");
+  state.searchQuery=input?.value||"";
+  const host=document.getElementById("globalSearchResults");
+  if(host)host.innerHTML=searchResultsHTML(state.searchQuery);
+}
+function searchResultsHTML(q){
+  const results=globalSearchResults(q);
+  if(String(q||"").trim().length<2)return `<div class="notice">Mindestens 2 Zeichen eingeben. Durchsucht Termine, Aufgaben, Einkauf, Pinnwand, Essensplan, Anlässe, Inbox und Wünsche.</div>`;
+  return results.length?results.map(r=>`<div class="search-result" onclick="openSearchResult('${r.kind}','${r.id}')"><div class="search-icon">${r.icon}</div><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.meta)}</div></div><span class="chev">›</span></div>`).join(""):`<div class="notice">Nichts gefunden.</div>`;
+}
+function openSearchResult(kind,id){
+  state.searchOpen=false;state.searchQuery="";
+  if(["event","task","shop"].includes(kind)){openItemDetail(kind,id);return}
+  if(kind==="note"){openNote(id);return}
+  if(kind==="meal"){go("meals");return}
+  if(kind==="occasion"){go("occasions");return}
+  if(kind==="inbox"){go("inbox");return}
+  if(kind==="wish"){go("wishes");return}
+}
+function searchOverlayHTML(){
+  return `<div class="modalbg" onclick="if(event.target===this)closeSearch()"><div class="search-sheet">
+    <div class="section-head"><div><div class="detail-title">FamilienHub durchsuchen</div><div class="meta">Alles an einer Stelle finden.</div></div><button class="ghost" onclick="closeSearch()">Schließen</button></div>
+    <div class="search-box"><span>⌕</span><input id="globalSearch" placeholder="z. B. Zahnarzt, Milch, Geburtstag …" value="${esc(state.searchQuery)}" oninput="updateSearchResults()"></div>
+    <div id="globalSearchResults">${searchResultsHTML(state.searchQuery)}</div>
+  </div></div>`;
+}
 
 let swipeClickBlockedUntil=0;
 
 function swipeClickOk(){return Date.now()>swipeClickBlockedUntil}
 
+function swipeQuickMeta(type,id){
+  if(type==="task"){
+    const x=db.tasks.find(v=>v.id===id);
+    return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null;
+  }
+  if(type==="shop"){
+    const x=db.shopping.find(v=>v.id===id);
+    return x?{label:x.done?"↩ Offen":"✓ Erledigt",undo:x.done}:null;
+  }
+  return null;
+}
 function swipeWrap(type,id,content){
-  return `<div class="swipe-item" data-swipe-type="${type}" data-swipe-id="${id}">
+  const quick=swipeQuickMeta(type,id);
+  return `<div class="swipe-item" data-swipe-type="${type}" data-swipe-id="${id}" data-has-quick="${quick?"1":"0"}">
+    ${quick?`<button class="swipe-quick-btn ${quick.undo?"undo":""}" onclick="event.stopPropagation();swipeQuick('${type}','${id}')">${quick.label}</button>`:""}
     <button class="swipe-delete-btn" onclick="event.stopPropagation();swipeDelete('${type}','${id}')">🗑 Löschen</button>
     <div class="swipe-content">${content}</div>
   </div>`;
 }
-
+function swipeQuick(type,id){
+  if(type==="task"){toggleTask(id);return}
+  if(type==="shop"){toggleShop(id);return}
+}
 function closeOtherSwipeRows(except){
-  document.querySelectorAll(".swipe-item.swipe-open").forEach(el=>{
+  document.querySelectorAll(".swipe-item.swipe-open,.swipe-item.swipe-action-open").forEach(el=>{
     if(el!==except){
-      el.classList.remove("swipe-open");
+      el.classList.remove("swipe-open","swipe-action-open");
       const c=el.querySelector(".swipe-content");
       if(c)c.style.transform="";
     }
   });
 }
-
 function initSwipeRows(){
   document.querySelectorAll(".swipe-item").forEach(item=>{
     const content=item.querySelector(".swipe-content");
@@ -922,22 +1015,41 @@ function initSwipeRows(){
       if(!horizontal)return;
       e.preventDefault();
       dx=x;
-      const base=item.classList.contains("swipe-open")?-92:0;
-      const pos=Math.max(-108,Math.min(10,base+dx));
+      const openDelete=item.classList.contains("swipe-open");
+      const openQuick=item.classList.contains("swipe-action-open");
+      const base=openDelete?-92:openQuick?92:0;
+      const maxRight=item.dataset.hasQuick==="1"?108:10;
+      const pos=Math.max(-108,Math.min(maxRight,base+dx));
       content.style.transform=`translateX(${pos}px)`;
     },{passive:false});
 
     content.addEventListener("touchend",()=>{
-      if(!active&&!horizontal){content.style.transition="";return}
       content.style.transition="";
       if(horizontal){
         swipeClickBlockedUntil=Date.now()+350;
-        const wasOpen=item.classList.contains("swipe-open");
-        if((!wasOpen&&dx<-38)||(wasOpen&&dx<28)){
+        const wasDelete=item.classList.contains("swipe-open");
+        const wasQuick=item.classList.contains("swipe-action-open");
+        item.classList.remove("swipe-open","swipe-action-open");
+
+        let next="closed";
+        if(!wasDelete&&!wasQuick){
+          if(dx<-38)next="delete";
+          else if(dx>38&&item.dataset.hasQuick==="1")next="quick";
+        }else if(wasDelete){
+          if(dx<28)next="delete";
+          if(dx>45&&item.dataset.hasQuick==="1")next="quick";
+        }else if(wasQuick){
+          if(dx>-28)next="quick";
+          if(dx<-45)next="delete";
+        }
+
+        if(next==="delete"){
           item.classList.add("swipe-open");
           content.style.transform="translateX(-92px)";
+        }else if(next==="quick"){
+          item.classList.add("swipe-action-open");
+          content.style.transform="translateX(92px)";
         }else{
-          item.classList.remove("swipe-open");
           content.style.transform="";
         }
       }
@@ -981,7 +1093,40 @@ async function swipeDelete(type,id){
   render();
 }
 
-function taskRow(t){return swipeWrap("task",t.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${fmtDate(t.due)} ${esc(t.time)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`)}
+
+function isTaskOverdue(t){
+  if(!t||t.done||!t.due)return false;
+  const d=new Date(`${t.due}T${t.time||"23:59"}`);
+  return d.getTime()<Date.now();
+}
+function taskSortValue(t){
+  const due=new Date(`${t.due||"2999-12-31"}T${t.time||"23:59"}`).getTime();
+  const pr={high:0,med:1,low:2}[t.prio]??3;
+  return [isTaskOverdue(t)?0:1,due,pr];
+}
+function sortedOpenTasks(items=db.tasks){
+  return items.filter(t=>!t.done).sort((a,b)=>{
+    const A=taskSortValue(a),B=taskSortValue(b);
+    return A[0]-B[0]||A[1]-B[1]||A[2]-B[2]||String(a.title).localeCompare(String(b.title),"de");
+  });
+}
+function taskDueLabel(t){
+  return `${fmtDate(t.due)} ${esc(t.time||"")}${isTaskOverdue(t)?` <span class="overdue-badge">überfällig</span>`:""}`;
+}
+function shiftTaskDue(id,mode){
+  if(!requireGeneralEdit())return;
+  const t=db.tasks.find(x=>x.id===id);if(!t)return;
+  const d=new Date();
+  if(mode==="today"){}
+  else if(mode==="tomorrow")d.setDate(d.getDate()+1);
+  else if(mode==="week")d.setDate(d.getDate()+7);
+  t.due=d.toISOString().slice(0,10);
+  if(t.done){t.done=false;t.completedAt=null}
+  addActivity("📆",`hat die Aufgabe „${t.title}“ auf ${mode==="today"?"heute":mode==="tomorrow"?"morgen":"in eine Woche"} verschoben.`,"task",t.id);
+  save();render();
+}
+
+function taskRow(t){return swipeWrap("task",t.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('task','${t.id}')"><button class="check ${t.done?"done":""}" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done?"✓":""}</button><div class="priority ${t.prio}"></div><div class="grow"><div class="title ${isTaskOverdue(t)?"overdue":""}">${esc(t.title)}</div><div class="meta">${taskDueLabel(t)} · ${esc(t.who)} · ${repeatLabel(t.repeat)}${t.completedAt?` · erledigt ${new Date(t.completedAt).toLocaleString("de-DE")}`:""}</div>${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}</div>${avatar(t.who,true)}<span class="chev">›</span></div>`)}
 function shopRow(s){return swipeWrap("shop",s.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('shop','${s.id}')"><button class="check ${s.done?"done":""}" onclick="event.stopPropagation();toggleShop('${s.id}')">${s.done?"✓":""}</button><div class="grow"><div class="title">${esc(s.name)} <span class="muted">${esc(s.qty)}</span></div><div class="meta">${esc(s.cat)} · von ${esc(s.by)}</div>${s.note?`<div class="meta note-body-preview">${esc(s.note)}</div>`:""}</div>${avatar(s.by,true)}<span class="chev">›</span></div>`)}
 function deviceCard(d,real=false){const on=["on","open","opening"].includes(d.state);return `<div class="device"><span style="font-size:24px">${d.icon||"⌁"}</span><div><div class="title">${esc(d.name||d.entity_id)}</div><div class="meta">${esc(d.room||d.entity_id)} · ${esc(d.state)}</div></div><div class="sw ${on?"on":""}" onclick="${real?`haToggle('${d.entity_id}','${d.state}')`:`toggleDemo('${d.id}')`}"><i></i></div></div>`}
 
@@ -1020,6 +1165,7 @@ function sortedMeals(){
 
 const DASHBOARD_META={
   events:["📅","Heute anstehend"],
+  tomorrow:["🌤️","Morgen"],
   tasks:["✓","Offene Aufgaben"],
   shopping:["🛒","Einkauf"],
   notes:["📌","Pinnwand"],
@@ -1066,7 +1212,19 @@ function activityRows(limit=6){
 }
 function dashboardCard(key,ctx){
   if(key==="events")return `<section class="card s7"><div class="section-head"><h3>📅 Heute anstehend</h3><button class="card-link" onclick="go('calendar')">Kalender →</button></div>${ctx.ev.length?ctx.ev.map(e=>swipeWrap("event",e.id,`<div class="row click-row" onclick="if(swipeClickOk())openItemDetail('event','${e.id}')"><div class="time">${e.time}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${eventOwnerBadge(e)}${e.place?` · ${esc(e.place)}`:""}</div></div>${calendarAvatar(e.calendarOwner)}<span class="chev">›</span></div>`)).join(""):`<div class="notice">Heute ist noch frei.</div>`}</section>`;
-  if(key==="tasks")return `<section class="card s6"><div class="section-head"><h3>✓ Offene Aufgaben</h3><button class="card-link" onclick="go('tasks')">Alle →</button></div>${ctx.tasks.slice(0,4).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section>`;
+  if(key==="tomorrow"){
+    const d=new Date();d.setDate(d.getDate()+1);const ds=d.toISOString().slice(0,10);
+    const evs=db.events.filter(e=>e.date===ds).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    const ts=sortedOpenTasks(db.tasks.filter(t=>t.due===ds));
+    const ms=sortedMeals().filter(m=>mealDayOffset(m.day)===1);
+    const lines=[
+      ...evs.slice(0,3).map(e=>`<div class="tomorrow-line click-row" onclick="openItemDetail('event','${e.id}')"><span>📅</span><div class="grow"><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.time||"")} · ${esc(calendarName(e.calendarOwner))}</div></div></div>`),
+      ...ts.slice(0,3).map(t=>`<div class="tomorrow-line click-row" onclick="openItemDetail('task','${t.id}')"><span>✓</span><div class="grow"><div class="title">${esc(t.title)}</div><div class="meta">${esc(t.time||"")} · ${esc(t.who)}</div></div></div>`),
+      ...ms.slice(0,2).map(m=>`<div class="tomorrow-line" onclick="go('meals')"><span>🍲</span><div class="grow"><div class="title">${esc(m.title)}</div><div class="meta">Essensplan</div></div></div>`)
+    ];
+    return `<section class="card s6"><div class="section-head"><h3>🌤️ Morgen</h3><span class="meta">${d.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}</span></div>${lines.length?lines.join(""):'<div class="notice">Morgen ist noch entspannt.</div>'}</section>`;
+  }
+  if(key==="tasks")return `<section class="card s6"><div class="section-head"><h3>✓ Offene Aufgaben</h3><button class="card-link" onclick="go('tasks')">Alle →</button></div>${sortedOpenTasks(ctx.tasks).slice(0,4).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section>`;
   if(key==="shopping")return `<section class="card s6"><div class="section-head"><h3>🛒 Einkauf</h3><button class="card-link" onclick="go('shopping')">Liste →</button></div>${ctx.shopping.slice(0,4).map(shopRow).join("")||'<div class="notice success">Nichts offen.</div>'}</section>`;
   if(key==="notes")return `<section class="card s6"><div class="section-head"><h3>📌 Pinnwand</h3><button class="card-link" onclick="go('notes')">Alle →</button></div>${sortedNotes().slice(0,3).map(n=>notePreview(n)).join("")||'<div class="notice">Noch nichts angepinnt.</div>'}</section>`;
   if(key==="meals")return `<section class="card s6"><div class="section-head"><h3>🍲 Essensplan</h3><button class="card-link" onclick="go('meals')">Plan →</button></div>${sortedMeals().slice(0,5).map(m=>`<div class="row"><span class="badge">${esc(m.day)}</span><div class="title">${esc(m.title)}</div></div>`).join("")||'<div class="notice">Noch nichts geplant.</div>'}</section>`;
@@ -1102,10 +1260,11 @@ function activityView(){
 }
 
 function todayView(){
- const td=todayISO(),ev=db.events.filter(e=>e.date===td).sort((a,b)=>a.time.localeCompare(b.time)),tasks=db.tasks.filter(t=>!t.done),shopping=db.shopping.filter(s=>!s.done);
+ const td=todayISO(),ev=db.events.filter(e=>e.date===td).sort((a,b)=>a.time.localeCompare(b.time)),tasks=sortedOpenTasks(),shopping=db.shopping.filter(s=>!s.done);
+ const overdue=tasks.filter(isTaskOverdue).length;
  const c=dashboardCfg();
  const visible=c.order.filter(k=>!c.hidden.includes(k));
- return `<section class="hero"><div class="section-head"><span class="pill">☀︎ Familienmorgen</span>${canManageFamily()?`<div class="hero-buttons"><button class="hero-edit" onclick="openModal('hero')">✎ Text anpassen</button><button class="hero-edit" onclick="go('dashboard')">⚙ Startseite</button></div>`:""}</div><h2>${esc(c.heroTitle||db.settings.heroTitle)}</h2><div class="muted">${esc(c.heroSubtitle||db.settings.heroSubtitle)} · ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben</div></section>
+ return `<section class="hero"><div class="section-head"><span class="pill">☀︎ Familienmorgen</span>${canManageFamily()?`<div class="hero-buttons"><button class="hero-edit" onclick="openModal('hero')">✎ Text anpassen</button><button class="hero-edit" onclick="go('dashboard')">⚙ Startseite</button></div>`:""}</div><h2>${esc(c.heroTitle||db.settings.heroTitle)}</h2><div class="muted">${esc(c.heroSubtitle||db.settings.heroSubtitle)} · ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} · ${ev.length} Termine · ${tasks.length} offene Aufgaben${overdue?` · <span class="overdue">${overdue} überfällig</span>`:""}</div></section>
  <div class="quick-actions">
    <button class="quick-action" onclick="openModal('event')"><b>📅</b>Termin</button>
    <button class="quick-action" onclick="openModal('task')"><b>✓</b>Aufgabe</button>
@@ -1145,8 +1304,8 @@ function calendarView(){
    </div>`)).join(""):`<div class="notice">In diesem Kalender sind noch keine Termine.</div>`}
  </section>`;
 }
-function tasksView(){return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">← Eintrag nach links wischen zum Löschen</div><div class="grid"><section class="card s8">${db.tasks.filter(t=>!t.done).map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${db.tasks.filter(t=>!t.done).length}</div><div class="kpi-label">offen</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
-function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><div class="swipe-hint">← Artikel nach links wischen zum Löschen</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
+function tasksView(){const open=sortedOpenTasks(),overdue=open.filter(isTaskOverdue);return `<div class="section-title"><h2>Aufgaben</h2><button class="primary" onclick="openModal('task')">+ Aufgabe</button></div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><div class="grid">${overdue.length?`<section class="card s12"><div class="notice warning"><b>⏰ ${overdue.length} überfällige Aufgabe${overdue.length===1?"":"n"}</b> – sie stehen automatisch ganz oben.</div></section>`:""}<section class="card s8">${open.map(taskRow).join("")||'<div class="notice success">Alles erledigt 🎉</div>'}</section><section class="card s4"><h3>📊 Übersicht</h3><div class="kpi">${open.length}</div><div class="kpi-label">offen</div><br><div class="kpi">${overdue.length}</div><div class="kpi-label">überfällig</div><br><div class="kpi">${db.tasks.filter(t=>t.done).length}</div><div class="kpi-label">erledigt</div><br><div class="notice">Wiederkehrende Aufgaben werden beim Abhaken automatisch neu angelegt.</div></section><section class="card s12"><h3>Erledigt</h3>${db.tasks.filter(t=>t.done).slice(-10).reverse().map(taskRow).join("")||'<div class="muted">Noch nichts erledigt.</div>'}</section></div>`}
+function shoppingView(){const lists=db.shoppingLists;return `<div class="section-title"><h2>Einkaufslisten</h2><div class="toolbar"><button class="ghost" onclick="openModal('shoppingList')">+ Liste</button><button class="primary" onclick="openModal('shop')">+ Artikel</button></div></div><div class="shopping-tabs">${lists.map(l=>`<button class="shop-tab ${state.shopList===l.id?"active":""}" onclick="state.shopList='${l.id}';render()">${l.icon} ${esc(l.name)}</button>`).join("")}</div><div class="swipe-hint">→ nach rechts = erledigt · ← nach links = löschen</div><section class="card s12">${db.shopping.filter(s=>s.listId===state.shopList).map(shopRow).join("")||'<div class="notice">Diese Liste ist leer.</div>'}</section>`}
 function wishesView(){
  const owners=[...new Set(db.wishes.map(w=>w.owner))];
  return `<div class="section-title"><h2>Wunschlisten</h2><button class="primary" onclick="openModal('wish')">+ Wunsch</button></div>
@@ -1228,6 +1387,7 @@ function itemDetailHTML(){
       <div class="detail-box"><div class="meta">Wiederholung</div><div class="title">${repeatLabel(x.repeat)}</div></div>
     </div>
     ${x.note?`<div class="detail-body">${esc(x.note)}</div>`:""}
+    ${canEditGeneral()&&!x.done?`<div class="task-quick-shift"><button onclick="shiftTaskDue('${x.id}','today')">📍 Heute</button><button onclick="shiftTaskDue('${x.id}','tomorrow')">🌤️ Morgen</button><button onclick="shiftTaskDue('${x.id}','week')">📆 + 1 Woche</button></div>`:""}
     ${canEditGeneral()?`<div class="actions"><button class="primary" onclick="toggleTask('${x.id}');state.itemDetail=null;render()">${x.done?"Wieder öffnen":"Als erledigt markieren"}</button><button class="ghost" onclick="editDetailItem()">Bearbeiten</button><button class="danger" onclick="deleteDetailItem()">Löschen</button></div>`:""}
    </div></div>`;
  }
@@ -1603,6 +1763,7 @@ function render(){
  checkReminders();
  if(state.noteDetailId)setTimeout(()=>loadNoteAttachments(state.noteDetailId),30);
  setTimeout(initSwipeRows,0);
+ if(state.searchOpen)setTimeout(()=>document.getElementById("globalSearch")?.focus(),30);
 }
 function removeItem(k,id){if(!requireGeneralEdit())return;db[k]=db[k].filter(x=>x.id!==id);save();render()}
 function toggleShop(id){if(!requireGeneralEdit())return;const s=db.shopping.find(x=>x.id===id);s.done=!s.done;addActivity(s.done?"✅":"↩️",s.done?`hat „${s.name}“ beim Einkauf erledigt.`:`hat „${s.name}“ wieder auf die Einkaufsliste gesetzt.`,"shop",s.id);save();render()}
