@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v11.4</title>
+<title>FamilienHub v11.4.1</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -383,6 +383,14 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
   .reno-room-hero-actions{width:100%;justify-content:flex-start}
   .reno-room-hero-actions button{flex:1}
 }
+.reno-copy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.reno-copy-room{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);background:#fffdf9;border-radius:14px;padding:10px;cursor:pointer}
+.reno-copy-room:hover{background:#fbf5ef}
+.reno-copy-room input{width:auto;margin-top:3px}
+.reno-copy-room b{display:block}
+.reno-copy-note{background:#f7efe8;border:1px solid #ead8ca;border-radius:14px;padding:10px;margin-top:10px}
+@media(max-width:620px){.reno-copy-grid{grid-template-columns:1fr}}
+
 
 
 
@@ -1393,7 +1401,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.4</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.4.1</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 const PERSONAL_UI_KEY="familienhub-v10-5-personal-ui";
 const VIEW_META={
@@ -3391,9 +3399,72 @@ function renovationOverview(){
   <section class="reno-room-section"><div class="section-head"><div><h3>🏠 Räume im Blick</h3><div class="meta">Jeden Raum öffnen und dort direkt Aufgaben, Status, Material und Entscheidungen sehen.</div></div><button class="primary" onclick="setRenovationTab('rooms')">Zu den Räumen →</button></div><div class="reno-room-mini-grid">${choices.map(renoRoomSummaryCard).join("")}</div></section>
   <div class="grid"><section class="card s7"><div class="section-head"><h3>🚨 Dringend & blockiert</h3><button class="ghost" onclick="setRenovationTab('tasks')">Alle Aufgaben →</button></div>${urgent.map(t=>renoTaskRow(t)).join("")||'<div class="notice success">Aktuell nichts Dringendes oder Blockiertes.</div>'}</section><section class="card s5"><div class="section-head"><h3>💡 Offene Entscheidungen</h3><button class="ghost" onclick="setRenovationTab('decisions')">Alle →</button></div>${openDecisions.map(d=>`<div class="reno-room-compact"><div class="title">${esc(d.title)}</div><div class="meta">${esc(renoRoomName(d.roomId))}${d.deadline?` · bis ${fmtDate(d.deadline)}`:""}</div></div>`).join("")||'<div class="notice">Keine offenen Entscheidungen.</div>'}</section></div>`;
 }
+
+function openRenoTaskCopy(taskId){
+  if(!requireParent())return;
+  const t=db.renovationTasks.find(x=>x.id===taskId);if(!t)return;
+  state.modal={type:"renoTaskCopy",editId:taskId,values:{}};
+  render();
+}
+function renoTaskCopyModalHTML(){
+  const source=db.renovationTasks.find(x=>x.id===state.modal.editId);
+  if(!source)return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="notice">Aufgabe nicht gefunden.</div><div class="actions"><button class="primary" onclick="closeModal()">Schließen</button></div></div></div>`;
+  const rooms=db.renovationRooms.filter(r=>r.id!==source.roomId);
+  const subCount=(source.subtasks||[]).length;
+  return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="section-head"><div><div class="detail-title">Aufgabe in andere Räume kopieren</div><div class="meta">🏗️ ${esc(source.title)} · Quelle: ${esc(renoRoomName(source.roomId))}</div></div><button class="ghost" onclick="closeModal()">Schließen</button></div>
+    <div class="notice"><b>Welche Räume sollen diese Aufgabe ebenfalls bekommen?</b><br>Du kannst mehrere Räume gleichzeitig auswählen.</div>
+    ${rooms.length?`<div class="reno-copy-grid">${rooms.map(r=>{const duplicate=db.renovationTasks.some(t=>t.roomId===r.id&&t.title.trim().toLowerCase()===source.title.trim().toLowerCase());return `<label class="reno-copy-room"><input type="checkbox" data-reno-copy-room value="${r.id}" ${duplicate?"disabled":""}><span><b>🚪 ${esc(r.name)}</b><span class="meta">${esc(r.floor||"")}${duplicate?`${r.floor?" · ":""}bereits vorhanden`:""}</span></span></label>`}).join("")}</div>`:`<div class="notice warning">Es gibt keinen weiteren Raum, in den diese Aufgabe kopiert werden kann.</div>`}
+    <div class="reno-copy-note"><b>Die Kopie startet unabhängig neu.</b><div class="meta" style="margin-top:4px">Übernommen werden Titel, Gewerk, Priorität, Zuständigkeit, Fälligkeit, Budget, Notiz, Handwerker-Einstellung und ${subCount} Unteraufgabe${subCount===1?"":"n"}. Status wird auf „Offen“ gesetzt, Unteraufgaben werden nicht abgehakt, Ist-Kosten werden auf 0 € gesetzt. Bilder/PDFs und Abhängigkeiten werden bewusst nicht kopiert.</div></div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button>${rooms.length?`<button class="primary" onclick="copyRenovationTaskToRooms('${source.id}')">In ausgewählte Räume kopieren</button>`:""}</div>
+  </div></div>`;
+}
+function copyRenovationTaskToRooms(taskId){
+  if(!requireParent())return;
+  const source=db.renovationTasks.find(x=>x.id===taskId);if(!source)return;
+  const roomIds=[...document.querySelectorAll("[data-reno-copy-room]:checked")].map(x=>x.value);
+  if(!roomIds.length)return alert("Bitte mindestens einen Zielraum auswählen.");
+  let created=0,skipped=0,lastRoom="";
+  for(const roomId of roomIds){
+    const duplicate=db.renovationTasks.some(t=>t.roomId===roomId&&t.title.trim().toLowerCase()===source.title.trim().toLowerCase());
+    if(duplicate){skipped++;continue}
+    const now=Date.now(),id="r"+now+"-"+Math.random().toString(36).slice(2,7);
+    const subtasks=(source.subtasks||[]).map((s,i)=>({
+      id:"rs"+now+"-"+i+"-"+Math.random().toString(36).slice(2,5),
+      title:s.title,
+      done:false
+    }));
+    db.renovationTasks.push({
+      id,
+      title:source.title,
+      roomId,
+      status:"open",
+      priority:source.priority||"med",
+      trade:source.trade||"",
+      dueDate:source.dueDate||"",
+      assignedTo:source.assignedTo||"",
+      contractorRequired:!!source.contractorRequired,
+      contractorId:source.contractorId||"",
+      blockedBy:"",
+      budget:Number(source.budget||0),
+      actual:0,
+      note:source.note||"",
+      subtasks,
+      attachments:[],
+      createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    });
+    created++;lastRoom=roomId;
+  }
+  state.modal=null;
+  if(created===1){state.renovationTab="rooms";state.renovationSelectedRoom=lastRoom}
+  save();render();
+  const msg=`${created} Kopie${created===1?"":"n"} erstellt${skipped?` · ${skipped} bereits vorhandene Aufgabe${skipped===1?"":"n"} übersprungen`:""}.`;
+  setTimeout(()=>alert(msg),30);
+}
+
 function renoTaskRow(t){
   const st=renoEffectiveTaskStatus(t),blocked=renoTaskBlocked(t),contractor=t.contractorRequired?"👷 Handwerker nötig":"🔧 Eigenleistung",subtasks=renoSubtasksHTML(t);
-  return `<div class="reno-row"><div class="reno-top"><div class="reno-main"><div class="title">${esc(t.title)} <span class="reno-prio ${t.priority||"low"}">${renoPriorityLabel(t.priority)}</span> <span class="reno-status ${st}">${renoStatusLabel(st)}</span></div><div class="meta">${esc(renoRoomName(t.roomId))}${t.trade?` · ${esc(t.trade)}`:""} · ${contractor}${t.assignedTo?` · ${esc(t.assignedTo)}`:""}${t.dueDate?` · ${fmtDate(t.dueDate)}`:""}</div>${blocked?`<div class="reno-blocked-note">⛔ Wartet auf: ${esc(renoTaskName(t.blockedBy))}</div>`:""}${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}${renoFilesHTML("task",t.id,t.attachments||[])}</div>${t.actual?`<div class="reno-money">${Number(t.actual).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="reno-actions">${st!=="blocked"&&t.status!=="done"?`<button class="primary" onclick="renoNextTaskStatus('${t.id}')">${t.status==="progress"?"Erledigt":"Starten"} →</button>`:""}<button class="ghost" onclick="renovationTaskToFamilyTask('${t.id}')">→ Familien-Aufgabe</button><button class="ghost" onclick="openRenovationModal('TaskEdit','${t.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationTasks','${t.id}')">Löschen</button></div></div>${subtasks?`<div class="reno-subtasks-full">${subtasks}</div>`:""}</div>`;
+  return `<div class="reno-row"><div class="reno-top"><div class="reno-main"><div class="title">${esc(t.title)} <span class="reno-prio ${t.priority||"low"}">${renoPriorityLabel(t.priority)}</span> <span class="reno-status ${st}">${renoStatusLabel(st)}</span></div><div class="meta">${esc(renoRoomName(t.roomId))}${t.trade?` · ${esc(t.trade)}`:""} · ${contractor}${t.assignedTo?` · ${esc(t.assignedTo)}`:""}${t.dueDate?` · ${fmtDate(t.dueDate)}`:""}</div>${blocked?`<div class="reno-blocked-note">⛔ Wartet auf: ${esc(renoTaskName(t.blockedBy))}</div>`:""}${t.note?`<div class="meta note-body-preview">${esc(t.note)}</div>`:""}${renoFilesHTML("task",t.id,t.attachments||[])}</div>${t.actual?`<div class="reno-money">${Number(t.actual).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}<div class="reno-actions">${st!=="blocked"&&t.status!=="done"?`<button class="primary" onclick="renoNextTaskStatus('${t.id}')">${t.status==="progress"?"Erledigt":"Starten"} →</button>`:""}<button class="ghost" onclick="openRenoTaskCopy('${t.id}')">⧉ Kopieren</button><button class="ghost" onclick="renovationTaskToFamilyTask('${t.id}')">→ Familien-Aufgabe</button><button class="ghost" onclick="openRenovationModal('TaskEdit','${t.id}')">Bearbeiten</button><button class="danger" onclick="deleteRenovationRecord('renovationTasks','${t.id}')">Löschen</button></div></div>${subtasks?`<div class="reno-subtasks-full">${subtasks}</div>`:""}</div>`;
 }
 function renovationTasksView(){
   let xs=[...db.renovationTasks];
@@ -3461,6 +3532,7 @@ function renovationView(){
 
 function renovationModalHTML(){
   const t=state.modal.type,id=state.modal.editId||"";
+  if(t==="renoTaskCopy")return renoTaskCopyModalHTML();
   const edit=t.endsWith("Edit"),base=t.replace(/^reno/,"").replace(/Edit$/,"");
   let x=null;
   const maps={Room:"renovationRooms",Task:"renovationTasks",Material:"renovationMaterials",Contractor:"renovationContractors",Offer:"renovationOffers",Decision:"renovationDecisions"};
@@ -3563,7 +3635,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.4 zeigt beim ersten Punkt den Gesamtfortschritt fürs ganze Haus: alle Räume und alle Aufgaben fließen in Prozent, Status und Aufgabenliste ein.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.4.1 ergänzt das Kopieren von Sanierungsaufgaben in mehrere Räume, wobei jede Kopie ihren eigenen Status und Fortschritt behält.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
