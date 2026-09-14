@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v11.6</title>
+<title>FamilienHub v11.7</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -436,6 +436,13 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .reno-material-bought-label{font-size:10px;color:#557255;font-weight:800;margin-top:3px}
 .reno-material-open-label{font-size:10px;color:var(--muted);margin-top:3px}
 .reno-material-empty{padding:22px;text-align:center;color:var(--muted)}
+.reno-list-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.reno-list-card.custom{border-style:solid}
+.reno-list-card.virtual{border-style:dashed}
+.reno-list-badge{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:800;background:#eee8f6;color:#716582;margin-top:5px}
+.reno-list-manage{display:flex;gap:7px;flex-wrap:wrap}
+.reno-list-empty-hint{font-size:10px;color:var(--muted);margin-top:4px}
+
 @media(max-width:900px){.reno-list-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){
   .reno-list-grid{grid-template-columns:1fr}
@@ -613,7 +620,7 @@ for(const n of db.notes){
   if(n.pinned===undefined)n.pinned=false;
 }
 
-for(const k of ["routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"]){
+for(const k of ["routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationMaterialLists","renovationContractors","renovationOffers","renovationDecisions"]){
   if(!Array.isArray(db[k]))db[k]=[];
 }
 for(const g of db.gifts){
@@ -788,7 +795,7 @@ function passwordResetView(){
   </div>`;
 }
 
-const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity","routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"];
+const SYNC_COLLECTIONS=["family","events","tasks","shoppingLists","shopping","wishes","occasions","notes","meals","inbox","houseMaintenance","houseAssets","meterReadings","dashboardConfig","activity","routines","school","pantry","trips","documents","familyStatus","gifts","renovationRooms","renovationTasks","renovationMaterials","renovationMaterialLists","renovationContractors","renovationOffers","renovationDecisions"];
 
 function saveCloud(){localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud))}
 function authHeaders(extra={}){
@@ -1263,7 +1270,7 @@ async function bootstrapCloud(){
 
 
 
-const PARENT_PRIVATE_COLLECTIONS=["gifts","renovationRooms","renovationTasks","renovationMaterials","renovationContractors","renovationOffers","renovationDecisions"];
+const PARENT_PRIVATE_COLLECTIONS=["gifts","renovationRooms","renovationTasks","renovationMaterials","renovationMaterialLists","renovationContractors","renovationOffers","renovationDecisions"];
 function syncCollectionsForCurrentRole(){
   return SYNC_COLLECTIONS.filter(c=>!PARENT_PRIVATE_COLLECTIONS.includes(c)||canManageFamily());
 }
@@ -1465,7 +1472,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.6</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.7</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 const PERSONAL_UI_KEY="familienhub-v10-5-personal-ui";
 const VIEW_META={
@@ -3246,12 +3253,40 @@ function renovationMaterialPrice(m){const p=Number(m.price??m.actual??0);return 
 function renovationMaterialPresetCategories(){
   return ["Elektrik","Sanitär","Heizung","Trockenbau","Maler","Boden","Fliesen","Netzwerk","Beleuchtung"];
 }
+function renoMaterialListRecordByName(name){
+  const n=String(name||"").trim().toLowerCase();
+  return db.renovationMaterialLists.find(x=>String(x.name||"").trim().toLowerCase()===n);
+}
 function renovationMaterialAllCategories(){
-  return [...new Set([...renovationMaterialPresetCategories(),...renovationMaterialCategories()])].sort((a,b)=>{
+  const custom=db.renovationMaterialLists.map(x=>x.name).filter(Boolean);
+  const used=renovationMaterialCategories();
+  return [...new Set([...custom,...used,...renovationMaterialPresetCategories()])].sort((a,b)=>{
     const p=renovationMaterialPresetCategories(),ai=p.indexOf(a),bi=p.indexOf(b);
     if(ai>=0||bi>=0)return (ai<0?999:ai)-(bi<0?999:bi);
     return a.localeCompare(b,"de");
   });
+}
+function renovationMaterialListIsCustom(name){return !!renoMaterialListRecordByName(name)}
+function renovationMaterialListCount(name){return db.renovationMaterials.filter(m=>renoMaterialCategory(m)===name).length}
+function openRenovationMaterialListCreate(){
+  if(!requireParent())return;
+  state.modal={type:"renoMaterialList",editId:"",values:{}};render();
+}
+function editRenovationMaterialList(name){
+  if(!requireParent())return;
+  const rec=renoMaterialListRecordByName(name);
+  state.modal={type:"renoMaterialListEdit",editId:rec?.id||"",values:{name}};render();
+}
+function deleteRenovationMaterialList(name){
+  if(!requireParent())return;
+  const count=renovationMaterialListCount(name);
+  if(count)return alert(`Die Materialliste „${name}“ enthält noch ${count} Produkt${count===1?"":"e"}. Verschiebe oder lösche diese Produkte zuerst. So geht nichts versehentlich verloren.`);
+  const rec=renoMaterialListRecordByName(name);
+  if(!rec)return alert("Diese vorgeschlagene Standardliste ist nicht dauerhaft angelegt und muss nicht gelöscht werden.");
+  if(!confirm(`Leere Materialliste „${name}“ wirklich löschen?`))return;
+  db.renovationMaterialLists=db.renovationMaterialLists.filter(x=>x.id!==rec.id);
+  if(state.renovationMaterialCategory===name)state.renovationMaterialCategory="all";
+  save();render();
 }
 function renovationMaterialIcon(cat){
   const n=searchNorm(cat);
@@ -3624,11 +3659,12 @@ function renovationMaterialsView(){
   if(selected==="all"){
     const cats=renovationMaterialAllCategories();
     const total=all.reduce((n,m)=>n+renovationMaterialPrice(m),0),bought=all.filter(renoMaterialPurchased).length;
-    return `<div class="section-head"><div><h3>🛒 Materiallisten</h3><div class="meta">Öffne z. B. „Elektrik“ und führe darin eine einfache Liste aller benötigten Produkte.</div></div></div>
+    return `<div class="section-head"><div><h3>🛒 Materiallisten</h3><div class="meta">Lege eigene Listen an oder öffne eine bestehende Liste für die benötigten Produkte.</div></div><button class="primary" onclick="openRenovationMaterialListCreate()">+ Materialliste</button></div>
       <div class="reno-material-summary"><div class="reno-material-kpi"><b>${all.length}</b><span>Produkte gesamt</span></div><div class="reno-material-kpi"><b>${all.length-bought}</b><span>noch offen</span></div><div class="reno-material-kpi"><b>${bought}</b><span>gekauft</span></div><div class="reno-material-kpi"><b>${total.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>erfasste Kosten</span></div></div>
       <div class="reno-list-grid">${cats.map(cat=>{
         const items=all.filter(m=>renoMaterialCategory(m)===cat),done=items.filter(renoMaterialPurchased).length,sum=items.reduce((n,m)=>n+renovationMaterialPrice(m),0),pct=items.length?Math.round(done/items.length*100):0;
-        return `<div class="reno-list-card" onclick="openRenovationMaterialList('${esc(cat)}')"><div class="reno-list-card-head"><div><div class="big">${renovationMaterialIcon(cat)}</div><div class="title">${esc(cat)}</div><div class="meta">${items.length?`${items.length} Produkt${items.length===1?"":"e"} · ${done} gekauft`:"Liste noch leer"}</div></div><b>${items.length?`${pct}%`:"—"}</b></div><div class="reno-progress"><i style="width:${pct}%"></i></div><div class="counts"><span class="reno-count open">${items.length-done} offen</span><span class="reno-count done">${done} gekauft</span>${sum?`<span class="reno-count">${sum.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</span>`:""}</div></div>`;
+        const custom=renovationMaterialListIsCustom(cat);
+        return `<div class="reno-list-card ${custom?"custom":"virtual"}"><div onclick="openRenovationMaterialList('${esc(cat)}')"><div class="reno-list-card-head"><div><div class="big">${renovationMaterialIcon(cat)}</div><div class="title">${esc(cat)}</div><div class="meta">${items.length?`${items.length} Produkt${items.length===1?"":"e"} · ${done} gekauft`:"Liste noch leer"}</div>${custom?'<span class="reno-list-badge">Eigene Liste</span>':!items.length?'<div class="reno-list-empty-hint">Vorschlag – wird beim ersten Produkt automatisch genutzt.</div>':""}</div><b>${items.length?`${pct}%`:"—"}</b></div><div class="reno-progress"><i style="width:${pct}%"></i></div><div class="counts"><span class="reno-count open">${items.length-done} offen</span><span class="reno-count done">${done} gekauft</span>${sum?`<span class="reno-count">${sum.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</span>`:""}</div></div><div class="reno-list-actions">${custom||items.length?`<button class="ghost" onclick="event.stopPropagation();editRenovationMaterialList('${esc(cat)}')">Umbenennen</button>`:""}${custom?`<button class="danger" onclick="event.stopPropagation();deleteRenovationMaterialList('${esc(cat)}')">Löschen</button>`:""}</div></div>`;
       }).join("")}</div>`;
   }
 
@@ -3670,9 +3706,38 @@ function renovationView(){
   return `<div class="section-title"><div><h2>🏗️ Haussanierung</h2><div class="small">Projektzentrale für Aufgaben, Räume, Material, Handwerker, Angebote und Entscheidungen.</div></div><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div><div class="reno-private"><span style="font-size:22px">🔒</span><div><b>Elternbereich</b><div class="meta">Budget, Angebote und Baustellenunterlagen bleiben nur bei Eltern. Einzelne Sanierungsaufgaben kannst du bei Bedarf als normale Familien-Aufgabe weitergeben.</div></div></div><div class="reno-tabs">${tabs.map(([v,l])=>`<button class="reno-tab ${state.renovationTab===v?"active":""}" onclick="setRenovationTab('${v}')">${l}</button>`).join("")}</div>${body}`;
 }
 
+
+function renoMaterialListModalHTML(){
+  const edit=state.modal.type==="renoMaterialListEdit";
+  const oldName=state.modal.values?.name||renoMaterialListRecordByName(state.modal.editId)?.name||"";
+  const rec=renoMaterialListRecordByName(oldName);
+  const current=rec?.name||oldName;
+  return `<div class="modalbg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="section-head"><div><div class="detail-title">${edit?"Materialliste bearbeiten":"Neue Materialliste"}</div><div class="meta">🏗️ Haussanierung · nur Eltern</div></div><button class="ghost" onclick="closeModal()">Schließen</button></div>
+    <div class="form"><div class="full"><label>Name der Materialliste</label><input id="rListName" value="${esc(current)}" placeholder="z. B. Elektro Rohinstallation"></div><div class="full"><label>Notiz optional</label><textarea id="rListNote" placeholder="z. B. Material für Rohinstallation im gesamten Haus">${esc(rec?.note||"")}</textarea></div></div>
+    ${edit&&renovationMaterialListCount(current)?`<div class="notice">Beim Umbenennen werden alle ${renovationMaterialListCount(current)} enthaltenen Produkte automatisch in die neue Liste übernommen.</div>`:""}
+    <div class="actions"><button class="ghost" onclick="closeModal()">Abbrechen</button><button class="primary" onclick="saveRenovationMaterialList('${esc(current)}')">${edit?"Speichern":"Liste anlegen"}</button></div>
+  </div></div>`;
+}
+function saveRenovationMaterialList(oldName=""){
+  if(!requireParent())return;
+  const name=val("rListName").trim(),note=val("rListNote");
+  if(!name)return alert("Bitte einen Namen für die Materialliste eingeben.");
+  const collision=renovationMaterialAllCategories().some(n=>n.toLowerCase()===name.toLowerCase()&&n.toLowerCase()!==String(oldName||"").toLowerCase());
+  if(collision)return alert("Eine Materialliste mit diesem Namen existiert bereits.");
+  let rec=renoMaterialListRecordByName(oldName)||renoMaterialListRecordByName(name);
+  if(!rec){rec={id:"rml"+Date.now()+"-"+Math.random().toString(36).slice(2,6),name,note,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};db.renovationMaterialLists.push(rec)}
+  else{rec.name=name;rec.note=note;rec.updatedAt=new Date().toISOString()}
+  if(oldName&&oldName.toLowerCase()!==name.toLowerCase()){
+    for(const m of db.renovationMaterials)if(renoMaterialCategory(m).toLowerCase()===oldName.toLowerCase())m.category=name;
+  }
+  state.renovationMaterialCategory=name;
+  state.modal=null;save();render();
+}
+
 function renovationModalHTML(){
   const t=state.modal.type,id=state.modal.editId||"";
   if(t==="renoTaskCopy")return renoTaskCopyModalHTML();
+  if(t==="renoMaterialList"||t==="renoMaterialListEdit")return renoMaterialListModalHTML();
   const edit=t.endsWith("Edit"),base=t.replace(/^reno/,"").replace(/Edit$/,"");
   let x=null;
   const maps={Room:"renovationRooms",Task:"renovationTasks",Material:"renovationMaterials",Contractor:"renovationContractors",Offer:"renovationOffers",Decision:"renovationDecisions"};
@@ -3707,7 +3772,7 @@ async function saveRenovationModal(t){
     x.title=title;x.roomId=val("rRoom");x.status=val("rStatus")||"open";x.priority=val("rPriority")||"med";x.trade=val("rTrade");x.dueDate=val("rDate");x.assignedTo=val("rPerson");x.contractorRequired=val("rContractorRequired")==="1";x.contractorId=val("rContractor");x.blockedBy=val("rBlockedBy");x.budget=Number(val("rBudget")||0);x.actual=Number(val("rActual")||0);x.note=val("rNote");const subEl=document.getElementById("rSubtasks");if(subEl)x.subtasks=parseRenoSubtasks(subEl.value,x.subtasks||[]);else if(!Array.isArray(x.subtasks))x.subtasks=[];if(!Array.isArray(x.attachments))x.attachments=[];
     const files=document.getElementById("rFiles")?.files;if(files?.length){try{x.attachments.push(...await uploadRenovationFiles("task",x.id,files))}catch(e){return alert(e.message)}}
   }
-  if(mapBase==="Material"){x.title=title;x.category=val("rCategory").trim()||"Allgemein";x.roomId=val("rRoom");x.qty=val("rQty");x.price=Number(val("rPrice")||0);x.actual=x.price;x.priority=val("rPriority")||"med";x.store=val("rStore");x.purchased=val("rPurchased")==="1";x.purchasedAt=x.purchased?(x.purchasedAt||new Date().toISOString()):"";x.status=x.purchased?"delivered":"needed";x.note=val("rNote");if(x.pushedToShopping===undefined)x.pushedToShopping=false;state.renovationMaterialCategory=x.category}
+  if(mapBase==="Material"){x.title=title;x.category=val("rCategory").trim()||"Allgemein";x.roomId=val("rRoom");x.qty=val("rQty");x.price=Number(val("rPrice")||0);x.actual=x.price;x.priority=val("rPriority")||"med";x.store=val("rStore");x.purchased=val("rPurchased")==="1";x.purchasedAt=x.purchased?(x.purchasedAt||new Date().toISOString()):"";x.status=x.purchased?"delivered":"needed";x.note=val("rNote");if(x.pushedToShopping===undefined)x.pushedToShopping=false;state.renovationMaterialCategory=x.category;if(!renoMaterialListRecordByName(x.category))db.renovationMaterialLists.push({id:"rml"+Date.now()+"-"+Math.random().toString(36).slice(2,6),name:x.category,note:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})}
   if(mapBase==="Contractor"){x.name=title;x.trade=val("rTrade");x.contact=val("rContact");x.phone=val("rPhone");x.email=val("rEmail");x.status=val("rContractorStatus")||"candidate";x.note=val("rNote")}
   if(mapBase==="Offer"){
     x.title=title;x.contractorId=val("rContractor");x.trade=val("rTrade");x.roomId=val("rRoom");x.taskId=val("rTask");x.amount=Number(val("rAmount")||0);x.status=val("rOfferStatus")||"received";x.date=val("rDate");x.validUntil=val("rValidUntil");x.note=val("rNote");if(!Array.isArray(x.attachments))x.attachments=[];
@@ -3775,7 +3840,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.6 trennt Material sauber in einzelne Listen pro Gewerk. In „Elektrik“ steht dann eine kompakte Produktliste mit Menge, Kosten und grünem Kauf-Häkchen.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.7 ergänzt frei anlegbare Materiallisten zusätzlich zu den Vorschlägen. Eigene Listen lassen sich umbenennen und sicher löschen.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
