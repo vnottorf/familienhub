@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5eee6">
-<title>FamilienHub v11.2.2</title>
+<title>FamilienHub v11.3</title>
 <style>
 :root{
   --bg:#f6efe7;--card:#fffaf5;--card2:#f2e7dc;--line:#e6d7ca;--ink:#483d37;--muted:#8e8075;
@@ -339,6 +339,51 @@ h1{font-size:22px;margin:0}.small,.muted{color:var(--muted);font-size:12px}
 .reno-subtask.done .reno-subtask-check{background:#8d9d83;border-color:#8d9d83;color:#fff}
 .reno-subtask-text{display:flex;flex-direction:column;gap:1px}
 .reno-subtask-hint{font-size:10px;color:var(--muted)}
+.reno-room-hub{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:start}
+.reno-room-picker{background:#fffdf9;border:1px solid var(--line);border-radius:18px;padding:10px;position:sticky;top:12px}
+.reno-room-picker-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 4px 9px}
+.reno-room-choice{display:block;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:14px;padding:10px;margin-bottom:6px;color:var(--ink)}
+.reno-room-choice:hover{background:#fbf5ef}
+.reno-room-choice.active{background:#f5e7da;border-color:#dfbea5}
+.reno-room-choice .title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.reno-room-choice .meta{margin-top:3px}
+.reno-room-choice .reno-progress{height:6px;margin-top:6px}
+.reno-room-detail{min-width:0}
+.reno-room-hero{background:#fffdf9;border:1px solid var(--line);border-radius:20px;padding:15px;margin-bottom:12px}
+.reno-room-hero-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.reno-room-hero-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.reno-room-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}
+.reno-room-stat{background:#f7efe8;border-radius:13px;padding:10px}
+.reno-room-stat b{display:block;font-size:18px}
+.reno-room-stat span{font-size:9px;color:var(--muted)}
+.reno-room-section{background:#fffdf9;border:1px solid var(--line);border-radius:18px;padding:13px;margin-bottom:12px}
+.reno-room-mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.reno-room-summary-card{background:#fffdf9;border:1px solid var(--line);border-radius:18px;padding:13px;cursor:pointer;transition:.12s ease}
+.reno-room-summary-card:hover{transform:translateY(-1px);box-shadow:0 8px 20px #0000000a}
+.reno-room-summary-card .counts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.reno-count{font-size:10px;padding:4px 7px;border-radius:999px;background:#f2e9e2;color:var(--muted)}
+.reno-count.open{background:#eee8f6;color:#716582}
+.reno-count.progress{background:#e7eef6;color:#61738a}
+.reno-count.blocked{background:#f5dfdc;color:#a04e45}
+.reno-count.done{background:#e8f1e6;color:#557255}
+.reno-room-compact{padding:8px 0;border-top:1px solid #eee4db}
+.reno-room-compact:first-child{border-top:0}
+.reno-room-empty{padding:18px;text-align:center;color:var(--muted)}
+.reno-room-back{display:none}
+@media(max-width:900px){
+  .reno-room-hub{grid-template-columns:1fr}
+  .reno-room-picker{position:static;display:flex;gap:7px;overflow-x:auto;align-items:stretch}
+  .reno-room-picker-title{min-width:150px;align-items:flex-start;flex-direction:column}
+  .reno-room-choice{min-width:190px;margin:0}
+  .reno-room-mini-grid{grid-template-columns:1fr}
+  .reno-room-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:620px){
+  .reno-room-hero-head{flex-direction:column}
+  .reno-room-hero-actions{width:100%;justify-content:flex-start}
+  .reno-room-hero-actions button{flex:1}
+}
+
 
 
 @media(max-width:760px){.reno-kpis{grid-template-columns:repeat(2,1fr)}.reno-room-grid{grid-template-columns:1fr}.reno-filters select{width:100%}.reno-top{flex-direction:column}.reno-actions{flex-direction:column}.reno-actions button{width:100%}}
@@ -533,7 +578,7 @@ for(const m of db.meals){
   }
 }
 
-let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open",giftRecipientFilter:"all",giftOccasionFilter:"all",renovationTab:"overview",renovationRoomFilter:"all",renovationTaskFilter:"open"};
+let state={view:"today",modal:null,shopList:"l1",calendarFilter:"all",noteDetailId:null,itemDetail:null,quickMenu:false,searchOpen:false,searchQuery:"",undoDelete:null,showDoneShopping:false,focusPerson:"",giftFilter:"open",giftRecipientFilter:"all",giftOccasionFilter:"all",renovationTab:"overview",renovationRoomFilter:"all",renovationTaskFilter:"open",renovationSelectedRoom:""};
 
 const CLOUD_KEY="familienhub-v3-cloud";
 let cloud=JSON.parse(localStorage.getItem(CLOUD_KEY)||"null")||{
@@ -1348,7 +1393,7 @@ function eventOwnerBadge(e){
 
 function fmtDate(s){return new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})}
 function repeatLabel(r){return ({none:"einmalig",daily:"täglich",weekly:"wöchentlich",monthly:"monatlich"}[r]||r)}
-function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.2.2</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
+function shell(content){return `<div class="app"><header><div class="brand" role="button" tabindex="0" title="Zur Heute-Seite" onclick="go('today')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('today')}"><div class="logo">♥</div><div><h1>FamilienHub</h1><div class="small">Gemeinsam organisiert · v11.3</div></div></div><div class="header-actions">${syncMiniHTML()}<button class="header-search" title="FamilienHub durchsuchen" onclick="openSearch()">⌕</button><div class="avatars">${db.family.map(p=>avatar(p.name)).join("")}</div></div></header>${content}${nav()}${canEditGeneral()?`<button class="fab" onclick="state.quickMenu=true;render()" aria-label="Schnell hinzufügen">+</button>`:""}</div>${state.modal?modalHTML():""}${state.noteDetailId?noteDetailHTML():""}${state.itemDetail?itemDetailHTML():""}${state.quickMenu?quickMenuHTML():""}${state.searchOpen?searchOverlayHTML():""}${state.undoDelete?undoToastHTML():""}`}
 function nav(){const xs=[["today","⌂","Heute"],["calendar","◫","Kalender"],["tasks","✓","Aufgaben"],["shopping","🛒","Einkauf"],["wishes","🎁","Wünsche"],["more","•••","Mehr"]];return `<nav class="bottom">${xs.map(x=>`<button class="nav ${state.view===x[0]?"active":""}" onclick="go('${x[0]}')"><b>${x[1]}</b>${x[2]}</button>`).join("")}</nav>`}
 const PERSONAL_UI_KEY="familienhub-v10-5-personal-ui";
 const VIEW_META={
@@ -3168,6 +3213,41 @@ function renoRoomProgress(roomId){
   const xs=db.renovationTasks.filter(t=>t.roomId===roomId),done=xs.filter(t=>t.status==="done").length;
   return {total:xs.length,done,pct:xs.length?Math.round(done/xs.length*100):0};
 }
+function renoRoomMatches(roomId,value){
+  return roomId==="__general__"?!value:value===roomId;
+}
+function renoRoomStats(roomId){
+  const tasks=db.renovationTasks.filter(t=>renoRoomMatches(roomId,t.roomId));
+  const statuses={open:0,progress:0,blocked:0,done:0};
+  for(const t of tasks)statuses[renoEffectiveTaskStatus(t)]++;
+  const done=tasks.filter(t=>t.status==="done").length,pct=tasks.length?Math.round(done/tasks.length*100):0;
+  const materials=db.renovationMaterials.filter(m=>renoRoomMatches(roomId,m.roomId));
+  const decisions=db.renovationDecisions.filter(d=>renoRoomMatches(roomId,d.roomId));
+  const offers=db.renovationOffers.filter(o=>renoRoomMatches(roomId,o.roomId));
+  const room=roomId==="__general__"?null:db.renovationRooms.find(r=>r.id===roomId);
+  const actual=tasks.reduce((n,t)=>n+(Number(t.actual)||0),0)+materials.reduce((n,m)=>n+(Number(m.actual)||0),0);
+  return {tasks,statuses,done,pct,materials,decisions,offers,room,budget:Number(room?.budget||0),actual};
+}
+function renovationRoomChoices(){
+  return [{id:"__general__",name:"Allgemein",floor:"Ganzes Haus"},...db.renovationRooms.map(r=>({id:r.id,name:r.name,floor:r.floor||""}))];
+}
+function selectRenovationRoom(id){
+  state.renovationSelectedRoom=id;state.renovationTab="rooms";render();
+}
+function selectedRenovationRoomId(){
+  const choices=renovationRoomChoices(),ids=choices.map(x=>x.id);
+  if(ids.includes(state.renovationSelectedRoom))return state.renovationSelectedRoom;
+  const first=db.renovationRooms[0]?.id||"__general__";
+  state.renovationSelectedRoom=first;return first;
+}
+function renoRoomChoiceHTML(x,selected){
+  const s=renoRoomStats(x.id);
+  return `<button class="reno-room-choice ${selected===x.id?"active":""}" onclick="selectRenovationRoom('${x.id}')"><div class="title"><span>${x.id==="__general__"?"🏠":"🚪"} ${esc(x.name)}</span><b>${s.pct}%</b></div><div class="meta">${esc(x.floor||"")}${x.floor&&s.tasks.length?" · ":""}${s.tasks.length} Aufgabe${s.tasks.length===1?"":"n"}</div><div class="reno-progress"><i style="width:${s.pct}%"></i></div><div class="counts"><span class="reno-count open">${s.statuses.open} offen</span>${s.statuses.progress?`<span class="reno-count progress">${s.statuses.progress} läuft</span>`:""}${s.statuses.blocked?`<span class="reno-count blocked">${s.statuses.blocked} blockiert</span>`:""}</div></button>`;
+}
+function renoRoomSummaryCard(x){
+  const s=renoRoomStats(x.id),next=s.tasks.filter(t=>t.status!=="done").sort((a,b)=>({high:0,med:1,low:2}[a.priority]??2)-({high:0,med:1,low:2}[b.priority]??2))[0];
+  return `<div class="reno-room-summary-card" onclick="selectRenovationRoom('${x.id}')"><div class="section-head"><div><div class="title">${x.id==="__general__"?"🏠":"🚪"} ${esc(x.name)}</div><div class="meta">${esc(x.floor||"")}</div></div><b>${s.pct}%</b></div><div class="reno-progress"><i style="width:${s.pct}%"></i></div><div class="counts"><span class="reno-count open">${s.statuses.open} offen</span><span class="reno-count progress">${s.statuses.progress} in Arbeit</span>${s.statuses.blocked?`<span class="reno-count blocked">${s.statuses.blocked} blockiert</span>`:""}<span class="reno-count done">${s.statuses.done} erledigt</span></div>${next?`<div class="meta" style="margin-top:8px">Als Nächstes: <b>${esc(next.title)}</b></div>`:""}</div>`;
+}
 function renoOverall(){
   const tasks=db.renovationTasks||[],done=tasks.filter(t=>t.status==="done").length;
   const roomBudgets=db.renovationRooms.reduce((n,r)=>n+(Number(r.budget)||0),0);
@@ -3269,6 +3349,7 @@ async function deleteRenovationRecord(collection,id){
   for(const a of (x.attachments||[])){try{await deleteRenovationStorage(a.path)}catch(e){}}
   db[collection]=db[collection].filter(v=>v.id!==id);
   if(collection==="renovationRooms"){
+    if(state.renovationSelectedRoom===id)state.renovationSelectedRoom="";
     for(const t of db.renovationTasks)if(t.roomId===id)t.roomId="";
     for(const m of db.renovationMaterials)if(m.roomId===id)m.roomId="";
     for(const o of db.renovationOffers)if(o.roomId===id)o.roomId="";
@@ -3285,11 +3366,15 @@ async function deleteRenovationRecord(collection,id){
   save();render();
 }
 function renovationOverview(){
-  const x=renoOverall(),open=db.renovationTasks.filter(t=>t.status!=="done").sort((a,b)=>{
-    const pr={high:0,med:1,low:2};return (pr[a.priority]??2)-(pr[b.priority]??2)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"));
-  }).slice(0,7);
-  return `<div class="reno-kpis"><div class="reno-kpi"><b>${x.pct}%</b><span>Aufgaben erledigt</span></div><div class="reno-kpi"><b>${x.open}</b><span>offene Aufgaben</span></div><div class="reno-kpi"><b>${db.renovationRooms.length}</b><span>Räume</span></div><div class="reno-kpi"><b>${x.roomBudgets.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>Raumbudget</span></div><div class="reno-kpi"><b>${x.actual.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>erfasste Ist-Kosten</span></div></div>
-  <div class="grid"><section class="card s7"><div class="section-head"><h3>🚧 Als Nächstes</h3><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div>${open.map(t=>renoTaskRow(t)).join("")||'<div class="notice success">Alle Sanierungsaufgaben erledigt.</div>'}</section><section class="card s5"><div class="section-head"><h3>🏠 Räume</h3><button class="ghost" onclick="setRenovationTab('rooms')">Alle →</button></div>${db.renovationRooms.slice(0,6).map(r=>{const p=renoRoomProgress(r.id);return `<div class="row"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${p.done}/${p.total} Aufgaben${r.budget?` · ${Number(r.budget).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}`:""}</div><div class="reno-progress"><i style="width:${p.pct}%"></i></div></div></div>`}).join("")||'<div class="notice">Noch keine Räume angelegt.</div>'}</section></div>`;
+  const x=renoOverall(),choices=renovationRoomChoices();
+  const urgent=db.renovationTasks.filter(t=>t.status!=="done"&&(t.priority==="high"||renoTaskBlocked(t))).sort((a,b)=>{
+    const ab=renoTaskBlocked(a)?0:1,bb=renoTaskBlocked(b)?0:1;
+    return ab-bb||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"));
+  }).slice(0,5);
+  const openDecisions=db.renovationDecisions.filter(d=>d.status!=="decided").sort((a,b)=>String(a.deadline||"9999").localeCompare(String(b.deadline||"9999"))).slice(0,4);
+  return `<div class="reno-kpis"><div class="reno-kpi"><b>${x.pct}%</b><span>Gesamtfortschritt</span></div><div class="reno-kpi"><b>${x.open}</b><span>offene Aufgaben</span></div><div class="reno-kpi"><b>${db.renovationRooms.length}</b><span>Räume</span></div><div class="reno-kpi"><b>${x.roomBudgets.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>Raumbudget</span></div><div class="reno-kpi"><b>${x.actual.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</b><span>Ist-Kosten</span></div></div>
+  <section class="reno-room-section"><div class="section-head"><div><h3>🏠 Räume im Blick</h3><div class="meta">Jeden Raum öffnen und dort direkt Aufgaben, Status, Material und Entscheidungen sehen.</div></div><button class="primary" onclick="setRenovationTab('rooms')">Zu den Räumen →</button></div><div class="reno-room-mini-grid">${choices.map(renoRoomSummaryCard).join("")}</div></section>
+  <div class="grid"><section class="card s7"><div class="section-head"><h3>🚨 Dringend & blockiert</h3><button class="ghost" onclick="setRenovationTab('tasks')">Alle Aufgaben →</button></div>${urgent.map(t=>renoTaskRow(t)).join("")||'<div class="notice success">Aktuell nichts Dringendes oder Blockiertes.</div>'}</section><section class="card s5"><div class="section-head"><h3>💡 Offene Entscheidungen</h3><button class="ghost" onclick="setRenovationTab('decisions')">Alle →</button></div>${openDecisions.map(d=>`<div class="reno-room-compact"><div class="title">${esc(d.title)}</div><div class="meta">${esc(renoRoomName(d.roomId))}${d.deadline?` · bis ${fmtDate(d.deadline)}`:""}</div></div>`).join("")||'<div class="notice">Keine offenen Entscheidungen.</div>'}</section></div>`;
 }
 function renoTaskRow(t){
   const st=renoEffectiveTaskStatus(t),blocked=renoTaskBlocked(t),contractor=t.contractorRequired?"👷 Handwerker nötig":"🔧 Eigenleistung",subtasks=renoSubtasksHTML(t);
@@ -3306,7 +3391,31 @@ function renovationTasksView(){
   return `<div class="section-head"><div><h3>✓ Sanierungsaufgaben</h3><div class="meta">Allgemeine Aufgaben und Aufgaben pro Raum in einer Liste.</div></div><button class="primary" onclick="openRenovationModal('Task')">+ Aufgabe</button></div><div class="reno-filters"><select onchange="state.renovationRoomFilter=this.value;render()"><option value="all">Alle Bereiche</option><option value="general" ${state.renovationRoomFilter==="general"?"selected":""}>Allgemein / ganzes Haus</option>${db.renovationRooms.map(r=>`<option value="${r.id}" ${state.renovationRoomFilter===r.id?"selected":""}>${esc(r.name)}</option>`).join("")}</select><select onchange="state.renovationTaskFilter=this.value;render()"><option value="open" ${state.renovationTaskFilter==="open"?"selected":""}>Offen</option><option value="blocked" ${state.renovationTaskFilter==="blocked"?"selected":""}>Blockiert</option><option value="done" ${state.renovationTaskFilter==="done"?"selected":""}>Erledigt</option><option value="all" ${state.renovationTaskFilter==="all"?"selected":""}>Alle</option></select></div><section class="card s12">${xs.map(renoTaskRow).join("")||'<div class="notice">Keine Aufgaben für diesen Filter.</div>'}</section>`;
 }
 function renovationRoomsView(){
-  return `<div class="section-head"><div><h3>🚪 Räume & Bereiche</h3><div class="meta">Fortschritt, Budget, Notizen und Baustellenbilder pro Raum.</div></div><button class="primary" onclick="openRenovationModal('Room')">+ Raum</button></div><div class="reno-room-grid">${db.renovationRooms.map(r=>{const p=renoRoomProgress(r.id);return `<div class="reno-room"><div class="reno-room-head"><div><div class="title">${esc(r.name)}</div><div class="meta">${esc(r.floor||"")}${r.budget?`${r.floor?" · ":""}Budget ${Number(r.budget).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}`:""}</div></div><div class="reno-actions"><button class="ghost" onclick="openRenovationModal('TaskForRoom','${r.id}')">+ Aufgabe</button><button class="ghost" onclick="openRenovationModal('RoomEdit','${r.id}')">Bearbeiten</button></div></div><div class="reno-progress"><i style="width:${p.pct}%"></i></div><div class="meta" style="margin-top:5px">${p.done}/${p.total} Aufgaben erledigt · ${p.pct}%</div>${r.note?`<div class="meta note-body-preview" style="margin-top:7px">${esc(r.note)}</div>`:""}${renoFilesHTML("room",r.id,r.attachments||[])}<div class="toolbar" style="margin-top:9px"><button class="danger" onclick="deleteRenovationRecord('renovationRooms','${r.id}')">Raum löschen</button></div></div>`}).join("")||'<div class="notice">Lege zuerst eure Räume an, z. B. Küche, Bad, Wohnzimmer, Flur oder Technik.</div>'}</div>`;
+  const selected=selectedRenovationRoomId(),choices=renovationRoomChoices(),s=renoRoomStats(selected),room=s.room;
+  const title=selected==="__general__"?"Allgemein / ganzes Haus":room?.name||"Raum";
+  const floor=selected==="__general__"?"Bereichsübergreifende Arbeiten":room?.floor||"";
+  const tasks=[...s.tasks].sort((a,b)=>{
+    const st={blocked:0,progress:1,open:2,done:3},pr={high:0,med:1,low:2};
+    return (st[renoEffectiveTaskStatus(a)]??2)-(st[renoEffectiveTaskStatus(b)]??2)||(pr[a.priority]??2)-(pr[b.priority]??2)||String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"));
+  });
+  return `<div class="section-head"><div><h3>🚪 Räume & Bereiche</h3><div class="meta">Raum auswählen → alle Aufgaben und deren Status direkt im Raum sehen.</div></div><button class="primary" onclick="openRenovationModal('Room')">+ Raum</button></div>
+  <div class="reno-room-hub">
+    <aside class="reno-room-picker"><div class="reno-room-picker-title"><div><b>Räume</b><div class="meta">Bereich auswählen</div></div></div>${choices.map(x=>renoRoomChoiceHTML(x,selected)).join("")}</aside>
+    <div class="reno-room-detail">
+      <div class="reno-room-hero"><div class="reno-room-hero-head"><div><div class="detail-title">${selected==="__general__"?"🏠":"🚪"} ${esc(title)}</div><div class="meta">${esc(floor)}</div></div><div class="reno-room-hero-actions"><button class="primary" onclick="${selected==="__general__"?"openRenovationModal('Task')":`openRenovationModal('TaskForRoom','${selected}')`}">+ Aufgabe</button>${room?`<button class="ghost" onclick="openRenovationModal('RoomEdit','${selected}')">Raum bearbeiten</button>`:""}</div></div>
+        <div class="reno-progress"><i style="width:${s.pct}%"></i></div>
+        <div class="reno-room-stats"><div class="reno-room-stat"><b>${s.statuses.open}</b><span>offen</span></div><div class="reno-room-stat"><b>${s.statuses.progress}</b><span>in Arbeit</span></div><div class="reno-room-stat"><b>${s.statuses.blocked}</b><span>blockiert</span></div><div class="reno-room-stat"><b>${s.statuses.done}</b><span>erledigt</span></div><div class="reno-room-stat"><b>${s.pct}%</b><span>Fortschritt</span></div></div>
+        ${(s.budget||s.actual)?`<div class="meta" style="margin-top:10px">Budget ${s.budget.toLocaleString("de-DE",{style:"currency",currency:"EUR"})} · erfasste Ist-Kosten ${s.actual.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}</div>`:""}
+        ${room?.note?`<div class="notice" style="margin-top:10px">${esc(room.note)}</div>`:""}${room?renoFilesHTML("room",room.id,room.attachments||[]):""}
+      </div>
+      <section class="reno-room-section"><div class="section-head"><div><h3>✓ Aufgaben in ${esc(title)}</h3><div class="meta">${tasks.length} Aufgabe${tasks.length===1?"":"n"} · Status und Unteraufgaben direkt hier bearbeiten.</div></div><button class="primary" onclick="${selected==="__general__"?"openRenovationModal('Task')":`openRenovationModal('TaskForRoom','${selected}')`}">+ Aufgabe</button></div>${tasks.map(renoTaskRow).join("")||'<div class="reno-room-empty">Für diesen Bereich sind noch keine Aufgaben angelegt.</div>'}</section>
+      <div class="reno-room-mini-grid">
+        <section class="reno-room-section"><div class="section-head"><h3>🛒 Material</h3><button class="ghost" onclick="setRenovationTab('materials')">Alle →</button></div>${s.materials.slice(0,6).map(m=>`<div class="reno-room-compact"><div class="title">${esc(m.title)} <span class="reno-status reno-mat ${m.status||"needed"}">${renoMaterialStatusLabel(m.status)}</span></div><div class="meta">${esc(m.qty||"")}${m.store?` · ${esc(m.store)}`:""}</div></div>`).join("")||'<div class="notice">Noch kein Material für diesen Bereich.</div>'}</section>
+        <section class="reno-room-section"><div class="section-head"><h3>💡 Entscheidungen</h3><button class="ghost" onclick="setRenovationTab('decisions')">Alle →</button></div>${s.decisions.slice(0,6).map(d=>`<div class="reno-room-compact"><div class="title">${esc(d.title)} <span class="reno-status ${d.status==="decided"?"done":"open"}">${renoDecisionStatusLabel(d.status)}</span></div><div class="meta">${d.deadline?`bis ${fmtDate(d.deadline)}`:""}${d.choice?` · ${esc(d.choice)}`:""}</div></div>`).join("")||'<div class="notice">Keine Entscheidungen für diesen Bereich.</div>'}</section>
+        <section class="reno-room-section"><div class="section-head"><h3>📄 Angebote</h3><button class="ghost" onclick="setRenovationTab('contractors')">Alle →</button></div>${s.offers.slice(0,6).map(o=>`<div class="reno-room-compact"><div class="title">${esc(o.title)}</div><div class="meta">${esc(renoContractorName(o.contractorId))} · ${renoOfferStatusLabel(o.status)}${o.amount?` · ${Number(o.amount).toLocaleString("de-DE",{style:"currency",currency:"EUR"})}`:""}</div></div>`).join("")||'<div class="notice">Keine Angebote für diesen Bereich.</div>'}</section>
+      </div>
+    </div>
+  </div>`;
 }
 function renovationMaterialsView(){
   const xs=[...db.renovationMaterials].sort((a,b)=>String(a.status).localeCompare(String(b.status))||String(a.roomId).localeCompare(String(b.roomId)));
@@ -3323,7 +3432,7 @@ function renovationDecisionsView(){
 }
 function renovationView(){
   if(!canManageFamily())return `<div></div>`;
-  const tabs=[["overview","Übersicht"],["tasks","Aufgaben"],["rooms","Räume"],["materials","Material"],["contractors","Handwerker & Angebote"],["decisions","Entscheidungen"]];
+  const tabs=[["overview","Übersicht"],["rooms","Räume"],["tasks","Aufgaben"],["materials","Material"],["contractors","Handwerker & Angebote"],["decisions","Entscheidungen"]];
   let body=renovationOverview();
   if(state.renovationTab==="tasks")body=renovationTasksView();
   if(state.renovationTab==="rooms")body=renovationRoomsView();
@@ -3362,6 +3471,7 @@ async function saveRenovationModal(t){
   if(!x){x={id};db[collection].push(x)}
   if(mapBase==="Room"){
     x.name=title;x.floor=val("rFloor");x.budget=Number(val("rBudget")||0);x.note=val("rNote");if(!Array.isArray(x.attachments))x.attachments=[];
+    state.renovationSelectedRoom=x.id;
     const files=document.getElementById("rFiles")?.files;if(files?.length){try{x.attachments.push(...await uploadRenovationFiles("room",x.id,files))}catch(e){return alert(e.message)}}
   }
   if(mapBase==="Task"){
@@ -3436,7 +3546,7 @@ function installView(){
 
 function cloudView(){
  const logged=!!cloud.accessToken,joined=!!cloud.familyId,parent=canManageFamily(),role=myCloudRole();
- return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.2.2 stabilisiert die Anmeldung nach längerer Inaktivität und synchronisiert rotierende Sitzungs-Tokens zwischen Safari und PWA.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
+ return `<div class="section-title"><div><h2>Familien-Synchronisierung</h2><div class="small">v11.3 macht die Haussanierung deutlich raumzentrierter: Räume öffnen jetzt eine echte Raumzentrale mit Aufgaben und Status.</div></div></div><div class="grid">${(!joined||parent)?`<section class="card s6"><h3>☁️ Supabase-Verbindung</h3><div class="form"><div class="full"><label>Project URL</label><input id="cUrl" value="${esc(cloud.url)}" placeholder="https://xxxx.supabase.co" onchange="cloud.url=this.value.trim();saveCloud()"></div><div class="full"><label>Publishable Key</label><input id="cKey" type="password" value="${esc(cloud.anonKey)}" onchange="cloud.anonKey=this.value.trim();saveCloud()"></div></div></section>`:`<section class="card s6 locked-card"><h3>🔒 Supabase-Verbindung</h3><div class="notice">Cloud-Verbindungsdaten sind für ${roleLabel(role)}-Profile gesperrt.</div></section>`}<section class="card s6"><h3>👤 Konto</h3><div id="cloudStatus" class="cloud-status"><span class="cloud-dot ${logged?"on":""}"></span>${logged?`Angemeldet als ${esc(cloud.email)} · ${roleLabel(role)}`:"Nicht angemeldet"}</div>${!logged?`<div class="form" style="margin-top:10px"><div class="full"><label>E-Mail</label><input id="cEmail" type="email" value="${esc(cloud.email||"")}" autocomplete="email"></div><div class="full"><label>Passwort</label><input id="cPassword" type="password"></div></div><div class="toolbar" style="margin-top:10px"><button class="primary" onclick="cloudSignIn()">Anmelden</button><button class="ghost" onclick="cloudSignUp()">Konto erstellen</button><button class="ghost" onclick="requestPasswordReset()">Passwort vergessen?</button></div>`:`<div class="toolbar" style="margin-top:10px"><button class="ghost" onclick="cloudSignOut()">Abmelden</button></div>`}</section>${logged&&!joined?`<section class="card s6"><h3>🏡 Neue Familie</h3><div class="form"><div class="full"><label>Familienname</label><input id="cFamilyName"></div><div class="full"><label>Dein Name in der App</label><input id="cCreateDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudCreateFamily()">Familie anlegen</button></section><section class="card s6"><h3>✉️ Familie beitreten</h3><div class="form"><div class="full"><label>Einladungscode</label><input id="cInviteCode"></div><div class="full"><label>Dein Name in der App</label><input id="cJoinDisplayName"></div></div><button class="primary" style="margin-top:10px" onclick="cloudJoinFamily()">Beitreten</button></section>`:""}${joined?`<section class="card s12"><h3>👨‍👩‍👧‍👦 ${esc(cloud.familyName||"Familie")}</h3><div class="row"><div class="grow"><div class="title">Einladungscode</div><div class="meta">Neue Mitglieder starten als Gast; ein Elternteil kann die Rolle danach ändern.</div></div><div class="pill">${esc(cloud.inviteCode)}</div></div><div class="row"><div class="grow"><div class="title">Einzel-Eintrag-Synchronisierung</div><div class="meta">Parallele Änderungen an unterschiedlichen Einträgen überschreiben sich nicht mehr gegenseitig.</div></div><button class="primary" onclick="cloudPush()">Jetzt synchronisieren</button></div><div class="sync-log">Letzter Sync: ${cloud.lastSync?new Date(cloud.lastSync).toLocaleString("de-DE"):"noch keiner"}</div></section>`:""}</div>`;
 }
 
 function backupView(){
